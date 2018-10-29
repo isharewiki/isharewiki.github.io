@@ -40,7 +40,7 @@
   An internal error occurred. <a id=error-bug-link target=_blank href=https://github.com/mittagskogel/sulfurous/issues/new>Click here</a> to file a bug report.
 </div>
 <div class=webgl-error>
-  It looks like your device doesn't support WebGL. You can try viewing this project in the legacy player <a id=legacy-link target=_blank href=https://sulfurous.aau.at/legacy>here</a>.
+  It looks like your device doesn't support WebGL. You can try viewing this project in the legacy player <a id=legacy-link target=_blank href=https://isharewiki.github.io/legacy>here</a>.
 </div>
 </div>
 
@@ -242,11 +242,11 @@
       id = '';
     }
 
-    document.title = 'sulfurous';
+    document.title = 'ishare';
     P.player.load(id, function(stage) {
       stage.triggerGreenFlag();
     }, function(title) {
-      document.title = title ? title + ' \xb7 sulfurous' : 'sulfurous';
+      document.title = title ? title + ' \xb7 ishare' : 'ishare';
       updateBugLink();
     });
 
@@ -257,7 +257,7 @@
   }
 
   function updateBugLink() {
-    bugLink.href = P.player.projectId ? 'https://github.com/mittagskogel/sulfurous/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://sulfurous.aau.at/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/mittagskogel/sulfurous/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
+    bugLink.href = P.player.projectId ? 'https://github.com/mittagskogel/sulfurous/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://isharewiki.github.io/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/mittagskogel/sulfurous/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
   }
 
   function updatePackageLink() {
@@ -283,7 +283,7 @@
 	  packageCustomResolutionYValue.value = 720;
 	}
 	// remember to change link before uploading!
-	packageLink.href = P.player.projectId ? 'https://sulfurous.aau.at/html/app.html?id=' + P.player.projectId +
+	packageLink.href = P.player.projectId ? 'https://isharewiki.github.io/html/app.html?id=' + P.player.projectId +
 	                                        '&turbo=' + packageTurbo.checked +
 											'&full-screen=' + packageFullScreen.checked +
 											'&aspect-x=' + packageAspectRatioX.value +
@@ -323,7 +323,7 @@ qrcode.makeCode(packageLink.href);
 	  embedCustomResolutionYValue.value = 480;
 	}
 	// remember to change link before uploading!
-    embedCode.value = P.player.projectId ? '<script src=\'https://sulfurous.aau.at/js/embed.js?id=' + P.player.projectId +
+    embedCode.value = P.player.projectId ? '<script src=\'https://isharewiki.github.io/js/embed.js?id=' + P.player.projectId +
 	                                       '&resolution-x=' + embedCustomResolutionXValue.value +
 										   '&resolution-y=' + embedCustomResolutionYValue.value +
 										   (embedHideControls.checked ? '&ui=false' :
