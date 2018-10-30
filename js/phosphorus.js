@@ -4331,7 +4331,7 @@ var P = (function() {
 
 }());
 
- var socket = io.connect(window.location.hostname+':8082');
+ var socket = io.connect(window.location.hostname+':80');
  
  var sulfCloudVars = [];
  var sulfCloudVarsChanged = {};
