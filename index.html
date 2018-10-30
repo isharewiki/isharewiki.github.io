@@ -4,6 +4,7 @@
 <title>phosphorus</title>
 <link rel=stylesheet href=player.css>
 <link rel=stylesheet href=index.css>
+<lang=zh-Hant-TW>
 
 <div class=area id=title-area>
 <h1 class=title>ishare</h1>
@@ -63,7 +64,7 @@
   <p>將帶有播放器的專案嵌入到你想要的網站裡頭。</p>
   <p>
     <input readonly id=embed-code>
-    <input type=checkbox id=embed-auto-start checked>
+    <input type=checkbox id=embed-auto-start>
     <label for=embed-auto-start >自動開始</label>
     <input type=checkbox id=embed-light-content>
     <label for=embed-light-content>明亮風格</label>
@@ -206,7 +207,7 @@
   }
 
   function updateBugLink() {
-    bugLink.href = P.player.projectId ? 'https://github.com/nathan/phosphorus/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://phosphorus.github.io/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/nathan/phosphorus/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
+    bugLink.href = P.player.projectId ? 'https://github.com/nathan/phosphorus/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://isharewiki.github.io/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/nathan/phosphorus/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
   }
 
   function updatePackageLink() {
