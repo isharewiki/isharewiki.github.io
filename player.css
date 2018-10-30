@@ -66,6 +66,10 @@
   float: left;
   background-position: -32px -65px;
 }
+.controls .reference {
+  float: left;
+  background-position: -160px 0px;
+}
 .controls span:active,
 .project-link:active {
   opacity: 1 !important;
