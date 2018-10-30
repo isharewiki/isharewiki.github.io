@@ -31,7 +31,7 @@
   <span class=view1 onclick="view1onclick()" title="觀看專案頁"></span>
   <span class=view2 onclick="view2onclick()" title="用 Scratch 2 編輯器打開"></span>
   <span class=view3 onclick="view3onclick()" title="用 Scratch 3 編輯器打開"></span>
-  <button class=download id=go title="直接下載專案">下載</button>
+  <span class=download id=go title="直接下載專案"></button>
 </div>
 <div class=player></div>
 <div class=internal-error>
@@ -306,7 +306,7 @@ $(document).ready(function(){
 			$("#project").css("color", "red");
 			return;
 		}
-		$("#go, #project").attr("disabled","disabled");
+		//$("#go, #project").attr("disabled","disabled");
 		startDownload(projectId);
 	});
 });
@@ -359,7 +359,7 @@ function startDownload(projectId){
 function downloadCostume(){
 	if(costumesToDownload.length > 0){
 		var current = costumesToDownload.pop();
-		logMessage("Loading asset "+current.costumeName+" ("+completeAssets+"/"+totalAssets+")");
+		logMessage("正在讀取資源 "+current.costumeName+" ("+completeAssets+"/"+totalAssets+")");
 		JSZipUtils.getBinaryContent(
 			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.baseLayerMD5+"/get/", 
 			function(err, data){
@@ -378,7 +378,7 @@ function downloadCostume(){
 function downloadSound(){
 	if(soundsToDownload.length > 0){
 		var current = soundsToDownload.pop();
-		logMessage("Loading asset "+current.soundName+" ("+completeAssets+"/"+totalAssets+")");
+		logMessage("正在讀取資源 "+current.soundName+" ("+completeAssets+"/"+totalAssets+")");
 		JSZipUtils.getBinaryContent(
 			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.md5+"/get/", 
 			function(err, data){
@@ -390,25 +390,25 @@ function downloadSound(){
 				downloadSound();
 		});
 	} else {
-		logMessage("Loading project title...");
+		logMessage("正在讀取專案標題...");
 		$.get("https://scratch.mit.edu/api/v1/project/"+id+"/?format=json", function(data){
-			logMessage("Generating ZIP...");
+			logMessage("正在建立壓縮檔...");
 			var content = jszip.generate({type:"blob"});
-			logMessage("Saving...");
+			logMessage("正在儲存...");
 			try {
 				saveAs(content, data.title+".sb2");
 			} catch(e){
 				saveAs(content, "project.sb2");
 			}
-			logMessage("Complete");
+			logMessage("完成");
 			psuccess();
 		}).fail(function(){
-			logMessage("Failed to load project title");
-			logMessage("Generating ZIP...");
+			logMessage("無法讀取專案標題...");
+			logMessage("正在建立壓縮檔...");
 			var content = jszip.generate({type:"blob"});
-			logMessage("Saving...");
+			logMessage("正在儲存...");
       saveAs(content, "project.sb2");
-			logMessage("Complete");
+			logMessage("完成");
 			psuccess();
 		});
 	}
@@ -436,7 +436,7 @@ function processSoundsAndCostumes(node){
 }
 
 function perror(){
-	logMessage("Download error");
+	logMessage("下載失敗");
 	setProgress(100);
 	$("#progress").addClass("error");
 	$("#progress").animate({opacity:0}, 1000, function(){
