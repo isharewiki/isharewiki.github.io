@@ -31,7 +31,7 @@
   <span class=view1 onclick="view1onclick()" title="觀看專案頁"></span>
   <span class=view2 onclick="view2onclick()" title="用 Scratch 2 編輯器打開"></span>
   <span class=view3 onclick="view3onclick()" title="用 Scratch 3 編輯器打開"></span>
-  <span class=download id=download title="直接下載專案"></span>
+  <span class=download onclick="startDownload()" title="直接下載專案"></span>
 </div>
 <div class=player></div>
 <div class=internal-error>
@@ -275,4 +275,148 @@
   function view1onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId);}
   function view2onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId +"/#editor");}
   function view3onclick(){window.open("https://beta.scratch.mit.edu/#"+P.player.projectId);}
+  
+function startDownload(P.player.projectId){
+	$("#log").text("");
+	$("#progress").text("");
+	logMessage("Downloading project: "+P.player.projectId);
+	soundId = 0;
+	costumeId = 0;
+	totalAssets = 0;
+	completeAssets = 0;
+	soundsToDownload = [];
+  costumesToDownload = [];
+	id = P.player.projectId;
+	setProgress(0);
+	jszip = new JSZip();
+	jszip.comment = "Created with MegaApuTurkUltra's Project Downloader";
+	$.get("https://cdn.projects.scratch.mit.edu/internalapi/project/"+P.player.projectId+"/get/", function(data){
+		// FIX 2018-07-16
+		if (typeof data == "string") {
+			data = JSON.parse(data);
+		}
+		setProgress(10);
+		logMessage("Loaded JSON");
+		project = data;
+		processSoundsAndCostumes(project);
+		if(project.hasOwnProperty("children")){
+			for(child in project.children){
+				processSoundsAndCostumes(project.children[child]);
+			}
+		}
+		logMessage("Found "+totalAssets+" assets");
+		jszip.file("project.json", JSON.stringify(project));
+		downloadCostume();
+	}).fail(perror);
+}
+function downloadCostume(){
+	if(costumesToDownload.length > 0){
+		var current = costumesToDownload.pop();
+		logMessage("Loading asset "+current.costumeName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.baseLayerMD5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.baseLayerMD5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.baseLayerID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadCostume();
+		});
+	} else {
+		downloadSound();
+	}
+}
+function downloadSound(){
+	if(soundsToDownload.length > 0){
+		var current = soundsToDownload.pop();
+		logMessage("Loading asset "+current.soundName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.md5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.md5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.soundID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadSound();
+		});
+	} else {
+		logMessage("Loading project title...");
+		$.get("https://scratch.mit.edu/api/v1/project/"+id+"/?format=json", function(data){
+			logMessage("Generating ZIP...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("Saving...");
+			try {
+				saveAs(content, data.title+".sb2");
+			} catch(e){
+				saveAs(content, "project.sb2");
+			}
+			logMessage("Complete");
+			psuccess();
+		}).fail(function(){
+			logMessage("Failed to load project title");
+			logMessage("Generating ZIP...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("Saving...");
+      saveAs(content, "project.sb2");
+			logMessage("Complete");
+			psuccess();
+		});
+	}
+}
+function processSoundsAndCostumes(node){
+	if(node.hasOwnProperty("costumes")){
+		for(var i=0;i<node.costumes.length;i++){
+			var current = node.costumes[i];
+			current.baseLayerID = costumeId;
+			costumeId++;
+			totalAssets++;
+			costumesToDownload.push(current);
+		}
+	}
+	if(node.hasOwnProperty("sounds")){
+		for(var i=0;i<node.sounds.length;i++){
+			var current = node.sounds[i];
+			current.soundID = soundId;
+			soundId++;
+			totalAssets++;
+			soundsToDownload.push(current);
+		}
+	}
+}
+
+function perror(){
+	logMessage("Download error");
+	setProgress(100);
+	$("#progress").addClass("error");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function psuccess(){
+	setProgress(100);
+	$("#progress").addClass("success");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function setProgress(perc){
+	maxWidth = $("#project").width() + $("#go").width();
+	$("#progress").css("left", $("#project").position().left+"px");
+	$("#progress").width(perc * maxWidth * 1.055 / 100);
+}
+
+function reset(){
+	$("#go, #project").removeAttr("disabled");
+}
+
+function logMessage(msg){
+	$("#log").text(msg+"\n"+$("#log").text());
+}
+
 </script>
