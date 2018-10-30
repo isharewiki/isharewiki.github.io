@@ -323,13 +323,20 @@ qrcode.makeCode(packageLink.href);
 	  embedCustomResolutionYValue.value = 480;
 	}
 	// remember to change link before uploading!
-    embedCode.value = P.player.projectId ? '<script src=\'https://sulfurous.aau.at/js/embed.js?id=' + P.player.projectId +
+<!--     embedCode.value = P.player.projectId ? '<script src=\'https://sulfurous.aau.at/js/embed.js?id=' + P.player.projectId +
 	                                       '&resolution-x=' + embedCustomResolutionXValue.value +
 										   '&resolution-y=' + embedCustomResolutionYValue.value +
 										   (embedHideControls.checked ? '&ui=false' :
 										   '&auto-start=' + embedAutoStart.checked +
 										   '&light-content=' + embedLightContent.checked) +
-										   '\'></' + 'script>' : '';    
+										   '\'></' + 'script>' : '';     -->
+    embedCode.value = P.player.projectId ? '<iframe src=\'https://sulfurous.aau.at/html/app.html?id=' + P.player.projectId +
+	                                       '&resolution-x=' + embedCustomResolutionXValue.value +
+										   '&resolution-y=' + embedCustomResolutionYValue.value +
+										   (embedHideControls.checked ? '&ui=false' :
+										   '&auto-start=' + embedAutoStart.checked +
+										   '&light-content=' + embedLightContent.checked) +
+										   '\'></' + 'iframe>' : '';    
     embedCustomResolutionXValue.disabled = !embedCustomResolution.checked;
 	embedCustomResolutionYValue.disabled = !embedCustomResolution.checked;
     embedAutoStart.disabled =
