@@ -71,6 +71,7 @@
   </p>
 </section>
 <section>
+
   <h1>Report a problem</h1>
   <p>phosphorus is still in development. <a id=bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>Click here</a> to report a problem with this project.</p>
 </section>
@@ -88,6 +89,8 @@
 <script src=lib/canvg.js></script>
 <script src=phosphorus.js></script>
 <script src=player.js></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2014-11-29/FileSaver.min.js"></script>
 <script>
 
 (function() {
@@ -275,9 +278,36 @@
   function view1onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId);}
   function view2onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId +"/#editor");}
   function view3onclick(){window.open("https://beta.scratch.mit.edu/#"+P.player.projectId);}
-function downloadclick(){startDownload(P.player.projectId);}
-  
-var projectId = P.player.projectId;
+
+
+</script>
+<script>
+$(document).ready(function(){
+	$("#project").bind("keydown keyup keypress", function(){
+		$(this).css("color", "white");
+		var projectId = $("#project").val();
+		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
+		projectId = parseInt(projectId);
+		if(isNaN(projectId)){
+			$("#project").css("color", "red");
+		}
+	}).on("paste", function(){
+		$(this).val("");
+	});
+	$("#go").click(function(){
+		$("#progress").removeClass("error success");
+		var projectId = $("#project").val();
+		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
+		projectId = parseInt(projectId);
+		if(isNaN(projectId)){
+			$("#project").css("color", "red");
+			return;
+		}
+		$("#go, #project").attr("disabled","disabled");
+		startDownload(projectId);
+	});
+});
+
 var maxWidth = 0;
 var jszip = null;
 var project = null;
@@ -288,6 +318,7 @@ var soundsToDownload = [];
 var costumesToDownload = [];
 var totalAssets = 0;
 var completeAssets = 0;
+
 function startDownload(projectId){
 	$("#log").text("");
 	$("#progress").text("");
@@ -321,6 +352,7 @@ function startDownload(projectId){
 		downloadCostume();
 	}).fail(perror);
 }
+
 function downloadCostume(){
 	if(costumesToDownload.length > 0){
 		var current = costumesToDownload.pop();
@@ -339,6 +371,7 @@ function downloadCostume(){
 		downloadSound();
 	}
 }
+
 function downloadSound(){
 	if(soundsToDownload.length > 0){
 		var current = soundsToDownload.pop();
@@ -377,6 +410,7 @@ function downloadSound(){
 		});
 	}
 }
+
 function processSoundsAndCostumes(node){
 	if(node.hasOwnProperty("costumes")){
 		for(var i=0;i<node.costumes.length;i++){
@@ -430,5 +464,4 @@ function reset(){
 function logMessage(msg){
 	$("#log").text(msg+"\n"+$("#log").text());
 }
-
 </script>
