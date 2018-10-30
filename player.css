@@ -50,6 +50,10 @@
   float: left;
   background-position: -128px 0;
 }
+.controls .download {
+  float: left;
+  background-position: -160px 32px;
+}
 .controls span:active,
 .project-link:active {
   opacity: 1 !important;
