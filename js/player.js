@@ -233,7 +233,7 @@ P.player = (function() {
     webGLError.style.display = 'block';
     if(document.querySelector('#player-area'))
       document.querySelector('#player-area').style.height = 'auto';
-    legacyLink.href = 'https://isharewiki.github.io/legacy/#' + P.player.projectId;
+    legacyLink.href = 'https://sulfurous.aau.at/legacy/#' + P.player.projectId;
     console.error(e);
   }
 
