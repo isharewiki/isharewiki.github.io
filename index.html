@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1.0">
-<title>phosphorus</title>
+<title>ishare</title>
 <link rel=stylesheet href=player.css>
 <link rel=stylesheet href=index.css>
 <lang=zh-Hant-TW>
@@ -72,11 +72,11 @@
     <label for=embed-hide-controls>隱藏操作面版</label>
   </p>
 </section>
-<!-- <section>
+<section>
 
-  <h1>Report a problem</h1>
-  <p>phosphorus is still in development. <a id=bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>Click here</a> to report a problem with this project.</p>
-</section> -->
+  <h1>有問題嗎？</h1>
+  <p>phosphorus 還在發展中，如果發現了什麼錯誤，請<a id=bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>在這裡回報</a>。</p>
+</section>
 </div>
 <section>
   <h1>誌謝</h1>
@@ -192,11 +192,11 @@
       id = '';
     }
 
-    document.title = 'phosphorus';
+    document.title = 'ishare';
     P.player.load(id, function(stage) {
       stage.triggerGreenFlag();
     }, function(title) {
-      document.title = title ? title + ' \xb7 phosphorus' : 'phosphorus';
+      document.title = title ? title + ' \xb7 ishare' : 'ishare';
       updateBugLink();
     });
 
