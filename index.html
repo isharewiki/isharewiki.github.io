@@ -23,15 +23,15 @@
 
 <div class=area id=player-area>
 <div class=controls>
-  <span class=stop></span>
-  <span class=pause></span>
-  <span class=flag title="Shift+click to enable turbo mode."></span>
-  <div class=turbo>Turbo Mode</div>
-  <span class=view1 id=view1></span>
-  <span class=view2 id=view2></span>
-  <span class=view3 id=view3></span>
-  <span class=download id=download></span>
-  <span class=full-screen></span>
+  <span class=stop title="停止"></span>
+  <span class=pause title="暫停"></span>
+  <span class=flag title="開始（按住 Shift 並點擊可啟用加速模式）"></span>
+  <div class=turbo>加速模式</div>
+  <span class=full-screen title="全屏顯示"></span>
+  <span class=view1 onclick="view1onclick()" title="觀看專案頁"></span>
+  <span class=view2 id=view2 title="用 Scratch 2 編輯器打開"></span>
+  <span class=view3 id=view3 title="用 Scratch 3 編輯器打開"></span>
+  <span class=download id=download title="直接下載專案"></span>
 </div>
 <div class=player></div>
 <div class=internal-error>
@@ -272,5 +272,5 @@
   });
 
 }());
-
+  function view1onclick(){window.open("https://scratch.mit.edu/projects/"+projectId);}
 </script>
