@@ -1,13 +1,13 @@
 <!doctype html>
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1.0">
-<title>ishare</title>
+<title>ishare scratch</title>
 <link rel=stylesheet href=player.css>
 <link rel=stylesheet href=index.css>
 
 <div class=area id=title-area>
-<h1 class=title>ishare</h1>
-<p>將你的 Scratch 專案編譯成 JavaScript，還附懶人功能，下載、用 Scratch 3.0 開啟…一應俱全… <a class=dropdown>給我ID，我給你全世界！<select id=examples>
+<h1 class=title>ishare scratch</h1>
+<p>將你的 Scratch 專案編譯成 JavaScript，還附懶人功能，下載、用 Scratch 3.0 開啟…一應俱全… <a class=dropdown>給我 ID，我給你全世界！<select id=examples>
   <option value>
   <option value=11397100>3D Remix by DadOfMrLog
   <option value=15945630>O by DCPU-16
@@ -48,40 +48,42 @@
 
 <div class=area id=project-area>
 <section class=package>
-  <h1>Package this project</h1>
-  <p>Get a link to a web page that automatically runs your project.</p>
+  <h1>打包帶走</h1>
+  <p>取得一個網頁，連結後可以自動執行該專案。</p>
   <p>
-    <a href=# target=_blank id=package-link>Package</a>
+    <a href=# target=_blank id=package-link>開始打包</a>
     <input type=checkbox id=package-turbo>
-    <label for=package-turbo>Turbo mode</label>
+    <label for=package-turbo>加速模式</label>
     <input type=checkbox id=package-full-screen checked>
-    <label for=package-full-screen>Full screen</label>
+    <label for=package-full-screen>全屏顯示</label>
   </p>
 </section>
 <section class=package>
-  <h1>Embed this project</h1>
-  <p>Include the phosphorus player in your web site.</p>
+  <h1>店內享用</h1>
+  <p>將帶有播放器的專案嵌入到你想要的網站裡頭。</p>
   <p>
     <input readonly id=embed-code>
-    <input type=checkbox id=embed-auto-start checked>
-    <label for=embed-auto-start>Start automatically</label>
+    <input type=checkbox id=embed-auto-start>
+    <label for=embed-auto-start >自動開始</label>
     <input type=checkbox id=embed-light-content>
-    <label for=embed-light-content>Light controls</label>
+    <!-- <label for=embed-light-content>明亮風格</label> -->
     <input type=checkbox id=embed-hide-controls>
-    <label for=embed-hide-controls>Hide UI</label>
+    <label for=embed-hide-controls>隱藏操作面版</label>
   </p>
 </section>
-<section>
+<!-- <section>
 
   <h1>Report a problem</h1>
   <p>phosphorus is still in development. <a id=bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>Click here</a> to report a problem with this project.</p>
-</section>
+</section> -->
 </div>
 <section>
-  <h1>Credits</h1>
-  <p>phosphorus was created by <a href=https://github.com/nathan>Nathan</a>. Its CPS-style compilation and overall design was inspired by <a href=https://github.com/RHY3756547>Rhys</a>'s <a href=https://code.google.com/p/sb2-js/>sb2.js</a>. It would have more bugs if not for <a href=https://github.com/trumank>Truman</a> and <a href=https://github.com/tjvr>Tim</a>. It uses the <a href=https://stuk.github.io/jszip/>JSZip</a> library, created by <a href=https://github.com/stuk>Stuart Knightley</a>, <a href=https://github.com/dduponchel>David Duponchel</a>, Franz Buchinger, and <a href=https://github.com/aadsm>António Afonso</a>, to read <code>.sb2</code> files and compressed projects, and the <a href=https://code.google.com/p/canvg/>canvg</a> library, created by <a href=https://code.google.com/u/gabelerner@gmail.com/>Gabe Lerner</a>, to render SVGs in <code>&lt;canvas&gt;</code> elements.
-  <h1>Code</h1>
-  <p>The source code for phosphorus is available <a href=https://github.com/nathan/phosphorus>on GitHub</a>.</p>
+  <h1>誌謝</h1>
+  <p>phosphorus 是由 <a href=https://github.com/nathan>Nathan</a> 創建， 其 CPS 風格的編輯和整體設計靈感來自於 <a href=https://github.com/RHY3756547>Rhys</a>'s <a href=https://code.google.com/p/sb2-js/>sb2.js</a>。感謝 <a href=https://github.com/trumank>Truman</a> 和 <a href=https://github.com/tjvr>Tim</a> 幫忙除錯。這個程式用到了 <a href=https://stuk.github.io/jszip/>JSZip</a> 庫（創建者有 <a href=https://github.com/stuk>Stuart Knightley</a>、<a href=https://github.com/dduponchel>David Duponchel</a>、Franz Buchinger、<a href=https://github.com/aadsm>António Afonso</a>）來讀取 <code>.sb2</code> 檔案以及壓縮的專案。還用到了 <a href=https://code.google.com/p/canvg/>canvg</a> 庫（創建者為 <a href=https://code.google.com/u/gabelerner@gmail.com/>Gabe Lerner</a>）來渲染 SVGs 到 <code>&lt;canvas&gt;</code> 元素裡頭。
+  <h1>程式碼</h1>
+  <p>phosphorus 的源碼就在 <a href=https://github.com/nathan/phosphorus> GitHub</a>。</p>
+  <h1>我是誰</h1>
+  <p>不重要</p>
 </section>
 <script src=fonts.js></script>
 <!-- <script src=//cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.js></script> -->
@@ -287,7 +289,7 @@
 <script>
 $(document).ready(function(){
 	$("#project").bind("keydown keyup keypress", function(){
-		$(this).css("color", "white");
+		$(this).css("color", "#000");
 		var projectId = $("#project").val();
 		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
 		projectId = parseInt(projectId);
