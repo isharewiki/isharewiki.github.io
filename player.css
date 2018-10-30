@@ -52,7 +52,7 @@
 }
 .controls .download {
   float: left;
-  background-position: -160px 32px;
+  background-position: -160px -32px;
 }
 .controls span:active,
 .project-link:active {
