@@ -6,16 +6,17 @@
 <link rel=stylesheet href=embed.css>
 <div class=controls>
   <div class=progress-bar></div>
-  <span class=stop></span>
-  <span class=pause></span>
-  <span class=flag title="Shift+click to enable turbo mode."></span>
-  <div class=turbo>Turbo Mode</div>
-  <span class=full-screen></span>
+  <span class=stop title="停止"></span>
+  <span class=pause title="暫停"></span>
+  <span class=flag title="開始（按住 Shift 並點擊可啟用加速模式）"></span>
+  <div class=turbo>加速模式</div>
+  <span class=full-screen title="全屏顯示"></span>
 </div>
 <div class=player></div>
 <div class=internal-error>
   An internal error occurred. <a id=error-bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>Click here</a> to file a bug report.
 </div>
+<div class=projectIdShow></div>
 <script src=fonts.js></script>
 <script src=//cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.js></script>
 <script src=lib/rgbcolor.js></script>
@@ -58,6 +59,7 @@
   document.body.className += hasUI ? ' has-ui' : ' hide-ui';
 
   document.title = 'phosphorus';
+  document.getElementById("projectIdShow").innerHTML = projectId;
   P.player.load(projectId, function(stage) {
     if (autoStart || !hasUI) stage.triggerGreenFlag();
   }, function(title) {
