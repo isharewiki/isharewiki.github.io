@@ -328,7 +328,7 @@ var completeAssets = 0;
 function startDownload(projectId){
 	$("#log").text("");
 	$("#progress").text("");
-	logMessage("Downloading project: "+projectId);
+	logMessage("正在下載專案 "+projectId);
 	soundId = 0;
 	costumeId = 0;
 	totalAssets = 0;
@@ -345,7 +345,7 @@ function startDownload(projectId){
 			data = JSON.parse(data);
 		}
 		setProgress(10);
-		logMessage("Loaded JSON");
+		logMessage("已加載 JSON");
 		project = data;
 		processSoundsAndCostumes(project);
 		if(project.hasOwnProperty("children")){
@@ -353,7 +353,7 @@ function startDownload(projectId){
 				processSoundsAndCostumes(project.children[child]);
 			}
 		}
-		logMessage("Found "+totalAssets+" assets");
+		logMessage("找到 "+totalAssets+" 個資源");
 		jszip.file("project.json", JSON.stringify(project));
 		downloadCostume();
 	}).fail(perror);
