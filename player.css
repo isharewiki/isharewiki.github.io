@@ -54,6 +54,10 @@
   float: left;
   background-position: -64px -65px;
 }
+.controls .screenshot {
+  float: left;
+  background-position: -96px -65px;
+}
 .controls .view1 {
   float: left;
   background-position: -160px 0px;
