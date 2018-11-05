@@ -34,10 +34,11 @@
   <span class=view2 onclick="view2onclick()" title="用 Scratch 2 編輯器打開"></span>
   <span class=view3 onclick="view3onclick()" title="用 Scratch 3 編輯器打開"></span>
   <span class=download id=go title="直接下載專案"></button>
+  <span class=screenshot onclick="screenshotonclick()" title="直接下載專案"></button>
 </div>
 <div class=player></div>
 <div class=internal-error>
-  An internal error occurred. <a id=error-bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>Click here</a> to file a bug report.
+  哎唷，發生內部錯誤，<a id=error-bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>點擊此處回報 bug</a>。
 </div>
 <pre><code id="log"></code></pre>
 </div>
@@ -50,7 +51,7 @@
 
 <div class=area id=project-area>
 <section class=package>
-  <h1>打包帶走</h1>
+  <h1>店內享用</h1>
   <p>取得一個網頁，連結後可以自動執行該專案。</p>
   <p>
     <a href=# target=_blank id=package-link>開始打包</a>
@@ -61,7 +62,7 @@
   </p>
 </section>
 <section class=package>
-  <h1>店內享用</h1>
+  <h1>打包帶走</h1>
   <p>將帶有播放器的專案嵌入到你想要的網站裡頭。</p>
   <p>
     <input readonly id=embed-code>
@@ -287,6 +288,7 @@
   function view1onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId);}
   function view2onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId +"/#editor");}
   function view3onclick(){window.open("https://beta.scratch.mit.edu/#"+P.player.projectId);}
+  function screenshotonclick(){window.open("https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png");}
 
 
 </script>
