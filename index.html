@@ -401,7 +401,7 @@ function downloadSound(){
 			var content = jszip.generate({type:"blob"});
 			logMessage("正在儲存...");
 			try {
-				saveAs(content, data.title+".sb2");
+				saveAs(content, P.player.projectTitle +".sb2");
 			} catch(e){
 				saveAs(content, "project.sb2");
 			}
