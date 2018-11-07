@@ -444,6 +444,7 @@ var P = (function () {
 
     IO.FONTS = {
         '': 'Helvetica',
+		Scratch: 'Scratch',
         Donegal: 'Donegal One',
         Gloria: 'Gloria Hallelujah',
         Marker: 'Permanent Marker',
@@ -451,7 +452,8 @@ var P = (function () {
     };
 
     IO.LINE_HEIGHTS = {
-        Helvetica: 1.13,
+        'Helvetica': 1.13,
+		'Scratch': 1.0,
         'Donegal One': 1.25,
         'Gloria Hallelujah': 1.97,
         'Permanent Marker': 1.43,
@@ -494,7 +496,7 @@ var P = (function () {
             }
         };
         xhr.onerror = function () {
-           // request.error(new Error('XHR Error'));
+           request.error(new Error('XHR Error'));
         };
         xhr.responseType = type || '';
         setTimeout(xhr.send.bind(xhr));
@@ -506,16 +508,21 @@ var P = (function () {
     IO.loadImage = function (url, callback, self) {
         var request = new Request;
         var image = new Image;
+		var bForcedBlank = false;
         image.crossOrigin = 'anonymous';
         image.src = url;
         image.onload = function () {
             request.load(image);
         };
         image.onerror = function () {
-            request.error(new Error('Failed to load image: ' + url));
+            //request.error(new Error('Failed to load image: ' + url));
+			console.log('Failed to load image (forcing blank): ' + url);
+			bForcedBlank = true;
+			image.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAABBJREFUeNpi+P//PwNAgAEACPwC/tuiTRYAAAAASUVORK5CYII=";
+			
         };
         if (callback) request.onLoad(callback.bind(self));
-        return request;
+        return (bForcedBlank) ? request : request;
     };
 
     IO.loadScratchr2Project = function (id, callback, self) {
