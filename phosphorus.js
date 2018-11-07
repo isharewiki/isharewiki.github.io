@@ -977,6 +977,7 @@ var P = (function() {
           tspan.setAttribute('y', y + size * i * lineHeight);
           element.appendChild(tspan);
         }
+        
       }
       // svg.style.cssText = '';
       // console.log(element.textContent, 'data:image/svg+xml;base64,' + btoa(svg.outerHTML));
@@ -984,55 +985,168 @@ var P = (function() {
       element.setAttribute('x', 0);
       element.setAttribute('y', 0);
     }
-    [].forEach.call(element.childNodes, IO.fixSVG.bind(null, svg));
+    
+    if (element.nodeName === 'linearGradient'){
+      element.setAttribute('id', element.getAttribute('id') + svg.getAttribute('id'));
+        element.setAttribute('gradientUnits', 'objectBoundingBox');
+        //I really don't know what kind of algorithm scratch is following here, so this is just guesswork.
+        var x1 = Number(element.getAttribute('x1'));
+        var x2 = Number(element.getAttribute('x2'));
+        var y1 = Number(element.getAttribute('y1'));
+        var y2 = Number(element.getAttribute('y2'));
+        
+        if(x1 === x2){
+          x1 = 0;
+          x2 = 0;
+        }
+        else if(x1 < x2){
+          x1 = 0;
+          x2 = 1;
+        }
+        else{
+          x1 = 1;
+          x2 = 0;
+        }
+        if(y1 === y2){
+          y1 = 0;
+          y2 = 0;
+        }
+        else if(y1 < y2){
+          y1 = 0;
+          y2 = 1;
+        }
+        else{
+          y1 = 1;
+          y2 = 0;
+        }
+        
+        element.setAttribute('x1', x1);
+        element.setAttribute('x2', x2);
+        element.setAttribute('y1', y1);
+        element.setAttribute('y2', y2);
+ 
+    }
+	
+		if(element.nodeName === 'radialGradient'){
+			element.setAttribute('id', element.getAttribute('id') + svg.getAttribute('id'));
+			element.setAttribute('gradientUnits', 'objectBoundingBox');
+		}
+    
+    if (element.getAttribute('fill') ? element.getAttribute('fill').indexOf("url") > -1 : false){
+      element.setAttribute('fill', element.getAttribute('fill').replace(/.$/, svg.getAttribute('id')));
+    }
+    
+    if (element.getAttribute('stroke') ? element.getAttribute('stroke').indexOf("url") > -1 : false){
+      element.setAttribute('stroke', element.getAttribute('stroke').replace(/.$/, svg.getAttribute('id')));
+    }
+    
+    [].forEach.call(element.childNodes, function(child){
+	  var newChild = IO.fixSVG(svg, child);
+      if (newChild !== child) {
+        element.replaceChild(newChild, child);
+      }
+	});
+	return element;
   };
 
   IO.loadMD5 = function(md5, id, callback, isAudio) {
-    if (IO.zip) {
+		if (IO.zip) {
       var f = isAudio ? IO.zip.file(id + '.wav') : IO.zip.file(id + '.gif') || IO.zip.file(id + '.png') || IO.zip.file(id + '.jpg') || IO.zip.file(id + '.svg');
       md5 = f.name;
     }
+		//get file extension
     var ext = md5.split('.').pop();
+		//special handling for svg
     if (ext === 'svg') {
       var cb = function(source) {
+        var div = document.createElement('div');
+        //div.innerHTML = source;
+        //var svg = div.getElementsByTagName('svg')[0];
+        //div.innerHTML = source.replace(/(<\/?)svg:/g, '$1');
+        //var svg = div.firstElementChild;		
+				
         var parser = new DOMParser();
         var doc = parser.parseFromString(source, 'image/svg+xml');
         var svg = doc.documentElement;
-        if (!svg.style) {
-          doc = parser.parseFromString('<body>'+source, 'text/html');
-          svg = doc.querySelector('svg');
+        doc = parser.parseFromString('<body>' + source, 'text/html');
+        svg = doc.querySelector('svg');
+        
+        svg.id = 'svg' + md5.split('.')[0];
+        if(svg.getAttribute('width') === '0' || svg.getAttribute('height') === '0'){
+          svg = document.createElementNS('https://www.w3.org/2000/svg', svg.localName);
         }
-        svg.style.visibility = 'hidden';
-        svg.style.position = 'absolute';
-        svg.style.left = '-10000px';
-        svg.style.top = '-10000px';
-        document.body.appendChild(svg);
-        var viewBox = svg.viewBox.baseVal;
+        else{
+          document.body.appendChild(svg);
+          svg = IO.fixSVG(svg, svg);
+        }
+		
+		//Some svg tags are completely emty for some reason, so we simply ignore these
+		if(!svg.style) return;		
+		//When viewBox doesn't exist yet, some browsers don't automatically create an object,
+		//so we need to do that manually. (SVGRect doesn't seem to have a constructor either)
+        var viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : {width: 0, height: 0, x: 0, y: 0};
+		
+        if (svg.querySelector("path") || svg.querySelector("image")) {
+        var bb = svg.getBBox();
+        viewBox.width  = svg.width.baseVal.value = Math.ceil(bb.x + bb.width + 1);
+        viewBox.height = svg.height.baseVal.value = Math.ceil(bb.y + bb.height + 1);				
+        viewBox.x = 0;
+        viewBox.y = 0;
+      }
+				//get the viewbox of the svg
         if (viewBox && (viewBox.x || viewBox.y)) {
-          svg.width.baseVal.value = viewBox.width - viewBox.x;
-          svg.height.baseVal.value = viewBox.height - viewBox.y;
+          //svg.width.baseVal.value = viewBox.width - viewBox.x;
+          //svg.height.baseVal.value = viewBox.height - viewBox.y;
+          //viewBox.x = 0;
+          //viewBox.y = 0;
+          //viewBox.width = 0;
+          //viewBox.height = 0;
+          var bb = svg.getBBox();
+          viewBox.width  = svg.width.baseVal.value = Math.ceil(bb.x + bb.width + 1);
+          viewBox.height = svg.height.baseVal.value = Math.ceil(bb.y + bb.height + 1);	
           viewBox.x = 0;
           viewBox.y = 0;
-          viewBox.width = 0;
-          viewBox.height = 0;
+          //viewBox.width = 0;
+          //viewBox.height = 0;
         }
-        IO.fixSVG(svg, svg);
-        document.body.removeChild(svg);
-        svg.style.visibility = svg.style.position = svg.style.left = svg.style.top = '';
+        //IO.fixSVG(svg, svg);
+        //document.body.removeChild(svg);
+        //svg.style.visibility = svg.style.position = svg.style.left = svg.style.top = '';
 
-        var canvas = document.createElement('canvas');
+        //IO.fixSVG(svg, svg);
+        //while (div.firstChild) div.removeChild(div.lastChild);
+        //div.appendChild(svg);
+        //svg.style.visibility = 'visible';
+        //svg.style.cssText = '';
+
+        svg.style['image-rendering'] = '-moz-crisp-edges';
+        svg.style['image-rendering'] = 'pixelated';
+		
+        //svg.style.overflow = 'visible';
+        //svg.style.width = '100%';
+        
+        var request = new Request;
         var image = new Image;
-        callback(image);
-        // svg.style.cssText = '';
-        // console.log(md5, 'data:image/svg+xml;base64,' + btoa(div.innerHTML.trim()));
-        canvg(canvas, new XMLSerializer().serializeToString(svg), {
-          ignoreMouse: true,
-          ignoreAnimation: true,
-          ignoreClear: true,
-          renderCallback: function() {
-            image.src = canvas.toDataURL();
-          }
-        });
+
+				//serialize the svg code to a single compact string
+        var newSource = (new XMLSerializer()).serializeToString(svg)
+				//convert the svg to a base-64 string
+        image.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(newSource))); 
+        
+        //svg.style.display = 'none';
+        document.body.removeChild(svg);
+        
+        image.onload = function() {
+          if (callback) callback(image);
+          request.load();
+        };
+        image.onerror = function(e) {
+          //console.error(e, image);
+          console.log(image.src);
+          console.error(md5, image.src);
+          request.error(new Error());
+        };
+        IO.projectRequest.add(request);		
       };
       if (IO.zip) {
         cb(f.asText());
@@ -1088,7 +1202,8 @@ var P = (function() {
     this.vars = Object.create(null);
     this.watchers = Object.create(null);
     this.lists = Object.create(null);
-
+	this.listsInfo = Object.create(null);
+	
     this.procedures = {};
     this.listeners = {
       whenClicked: [],
@@ -1117,6 +1232,7 @@ var P = (function() {
   };
 
   Base.prototype.fromJSON = function(data) {
+	  
     this.objName = data.objName;
     this.scripts = data.scripts;
     this.currentCostumeIndex = data.currentCostumeIndex || 0;
@@ -1125,6 +1241,10 @@ var P = (function() {
     }, this);
     this.addSounds(data.sounds);
     this.addLists(data.lists);
+	
+	
+	cloudManager(data.variables);
+	
     this.addVariables(data.variables);
 
     return this;
@@ -1137,13 +1257,56 @@ var P = (function() {
       this.soundRefs[s.name] = s;
     }
   };
+  
+  
+  
+	
+	
 
   Base.prototype.addVariables = function(variables) {
+				if(firstRunSulfVars == true){
+					 loadCookie();
+					firstRunSulfVars = false;
+				}
+  
+ 
     for (var i = 0; i < variables.length; i++) {
-      if (variables[i].isPeristent) {
-        throw new Error('Cloud variables are not supported');
-      }
-      this.vars[variables[i].name] = variables[i].value;
+      
+		
+		
+	  
+	  	if(variables[i].name.substring(variables[i].name.indexOf(".")+1,variables[i].name.indexOf(".")+3) == 'p.' ){
+				
+						try{
+							
+							this.vars[variables[i].name] = sulfCookieSaved[variables[i].name];
+							
+						}catch{
+							
+							this.vars[variables[i].name] = variables[i].value;
+							
+						}
+						
+				
+			
+				
+			}else if(variables[i].name.substring(variables[i].name.indexOf(".")+1,variables[i].name.indexOf(".")+3) == 'c.' ||variables[i].name.charAt(0) == '☁' ){
+				
+						console.log(variables[i].name);
+						if(typeof sulfCloudVars[variables[i].name] == 'undefined'){
+							this.vars[variables[i].name] = variables[i].value;
+						}else{
+							this.vars[variables[i].name] = sulfCloudVars[variables[i].name];
+						}
+						
+				
+			
+			
+				
+			}else{
+				this.vars[variables[i].name] = variables[i].value;
+			}
+      
     }
   };
 
@@ -1154,6 +1317,11 @@ var P = (function() {
       }
       this.lists[lists[i].listName] = lists[i].contents;
       // TODO list watchers
+	  
+	  this.listsInfo[lists[i].listName] = lists[i].x + "," + lists[i].y + "," + lists[i].width + "," + lists[i].height+ "," + lists[i].visible;		
+	   
+	  
+	  
     }
   };
 
@@ -1172,10 +1340,16 @@ var P = (function() {
       watcher.target = this;
       watcher.label = (watcher.target === stage ? '' : watcher.target.objName + ': ') + name;
       watcher.param = name;
-      stage.allWatchers.push(watcher);
+      stage.children.push(watcher);
+    } else {
+      var i = stage.children.indexOf(watcher);
+      if (i !== stage.children.length - 1) {
+        stage.children.splice(i, 1);
+        stage.children.push(watcher);
+      }
     }
     watcher.visible = visible;
-    watcher.layout();
+    //watcher.layout();
   };
 
   Base.prototype.showNextCostume = function() {
@@ -1195,10 +1369,10 @@ var P = (function() {
     return this.costumes[this.currentCostumeIndex] ? this.costumes[this.currentCostumeIndex].costumeName : '';
   };
 
-  Base.prototype.setCostume = function(costume) {
-    if (typeof costume !== 'number') {
-      costume = '' + costume;
-      for (var i = 0; i < this.costumes.length; i++) {
+  Base.prototype.setCostume = function(costume) {	
+  if(typeof costume == 'string'){
+  
+		for (var i = 0; i < this.costumes.length; i++) {
         if (this.costumes[i].costumeName === costume) {
           this.currentCostumeIndex = i;
           if (this.isStage) this.updateBackdrop();
@@ -1214,29 +1388,41 @@ var P = (function() {
         this.showPreviousCostume();
         return;
       }
-    }
-    var i = (Math.floor(costume) - 1 || 0) % this.costumes.length;
-    if (i < 0) i += this.costumes.length;
-    this.currentCostumeIndex = i;
-    if (this.isStage) this.updateBackdrop();
-    if (this.saying) this.updateBubble();
+  }
+     if(!isNaN(parseInt(costume))){
+	
+	
+		var i = (Math.round(Number(costume)) - 1) % this.costumes.length;
+		if (i < 0) i += this.costumes.length;
+		this.currentCostumeIndex = i;
+		if (this.isStage) this.updateBackdrop();
+		if (this.saying) this.updateBubble();
+	 }
   };
 
   Base.prototype.setFilter = function(name, value) {
+    var min = 0;
+    var max = 100;
     switch (name) {
-      case 'ghost':
-        if (value < 0) value = 0;
-        if (value > 100) value = 100;
-        break;
+      case 'whirl':
+      case 'fisheye':
       case 'brightness':
-        if (value < -100) value = -100;
-        if (value > 100) value = 100;
+      case 'pixelate': // absolute value
+      case 'mosaic': // absolute value
+        min = -Infinity;
+        max = Infinity;
         break;
       case 'color':
+	  
         value = value % 200;
         if (value < 0) value += 200;
+        max = 200;
+		
         break;
     }
+    if (value < min) value = min;
+    if (value > max) value = max;
+    value = Math.min(max, Math.max(min, value));
     this.filters[name] = value;
     if (this.isStage) this.updateFilters();
   };
@@ -1310,8 +1496,8 @@ var P = (function() {
     Stage.parent.call(this);
 
     this.children = [];
-    this.allWatchers = [];
-    this.dragging = Object.create(null);
+    //this.allWatchers = [];
+    //this.dragging = Object.create(null);
     this.defaultWatcherX = 10;
     this.defaultWatcherY = 10;
 
@@ -1321,19 +1507,24 @@ var P = (function() {
     this.nextPromptId = 0;
     this.tempoBPM = 60;
     this.videoAlpha = 1;
-    this.zoom = 1;
-    this.maxZoom = SCALE;
+    this.zoomX = 1;
+	  this.zoomY = 1;
+    this.maxZoomX = SCALE;
+	  this.maxZoomY = SCALE;
     this.baseNow = 0;
     this.baseTime = 0;
     this.timerStart = 0;
 
-    this.keys = [];
-    this.keys.any = 0;
+    this.keys = []
+    this.keys[128] = 0;
     this.rawMouseX = 0;
     this.rawMouseY = 0;
     this.mouseX = 0;
     this.mouseY = 0;
     this.mousePressed = false;
+			this.alpha = 0;
+			this.beta = 1;
+			this.gamma = 2;
 
     this.root = document.createElement('div');
     this.root.style.position = 'absolute';
@@ -1342,12 +1533,14 @@ var P = (function() {
     this.root.style.height = '360px';
     this.root.style.fontSize = '10px';
     this.root.style.background = '#fff';
-    this.root.style.contain = 'strict';
+    //this.root.style.contain = 'strict';
     this.root.style.WebkitUserSelect =
     this.root.style.MozUserSelect =
     this.root.style.MSUserSelect =
     this.root.style.WebkitUserSelect = 'none';
 
+    /********************   BACKDROP Canvas   ********************/
+    
     this.backdropCanvas = document.createElement('canvas');
     this.root.appendChild(this.backdropCanvas);
     this.backdropCanvas.width = SCALE * 480;
