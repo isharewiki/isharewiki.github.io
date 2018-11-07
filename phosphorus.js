@@ -4765,39 +4765,6 @@ P.compile = (function() {
 
       } else if (e[0] === 'computeFunction:of:') {
 
-        if (typeof e[1] !== 'object') {
-          switch ('' + e[1]) {
-            case 'abs':
-              return 'Math.abs(' + num(e[2]) + ')';
-            case 'floor':
-              return 'Math.floor(' + num(e[2]) + ')';
-            case 'sqrt':
-              return 'Math.sqrt(' + num(e[2]) + ')';
-            case 'ceiling':
-              return 'Math.ceil(' + num(e[2]) + ')';
-            case 'cos':
-              return 'Math.cos(' + num(e[2]) + ' * Math.PI / 180)';
-            case 'sin':
-              return 'Math.sin(' + num(e[2]) + ' * Math.PI / 180)';
-            case 'tan':
-              return 'Math.tan(' + num(e[2]) + ' * Math.PI / 180)';
-            case 'asin':
-              return 'Math.asin(' + num(e[2]) + ') * 180 / Math.PI';
-            case 'acos':
-              return 'Math.acos(' + num(e[2]) + ') * 180 / Math.PI';
-            case 'atan':
-              return 'Math.atan(' + num(e[2]) + ') * 180 / Math.PI';
-            case 'ln':
-              return 'Math.log(' + num(e[2]) + ')';
-            case 'log':
-              return 'Math.log(' + num(e[2]) + ') / Math.LN10';
-            case 'e ^':
-              return 'Math.exp(' + num(e[2]) + ')';
-            case '10 ^':
-              return 'Math.exp(' + num(e[2]) + ' * Math.LN10)';
-          }
-          return '0';
-        }
         return 'mathFunc(' + val(e[1]) + ', ' + num(e[2]) + ')';
 
       } else if (e[0] === 'mouseX') { /* Sensing */
@@ -4810,7 +4777,7 @@ P.compile = (function() {
 
       } else if (e[0] === 'timer') {
 
-        return '((self.now - self.timerStart) / 1000)';
+        return '((self.now() - self.timerStart) / 1000)';
 
       } else if (e[0] === 'distanceTo:') {
 
@@ -4887,20 +4854,20 @@ P.compile = (function() {
         return 'self.mousePressed';
 
       } else if (e[0] === 'touching:') {
-
+				
         return 'S.touching(' + val(e[1]) + ')';
 
       } else if (e[0] === 'touchingColor:') {
-
+        
         return 'S.touchingColor(' + val(e[1]) + ')';
 
-      // } else if (e[0] === 'color:sees:') {
+      } else if (e[0] === 'color:sees:') {
+        
+        return 'S.colorTouchingColor(' + val(e[1]) + ', ' + val(e[2]) + ')';
 
       } else if (e[0] === 'keyPressed:') {
 
-        var v = typeof e[1] === 'object' ?
-          'P.getKeyCode(' + val(e[1]) + ')' : val(P.getKeyCode(e[1]));
-        return '!!self.keys[' + v + ']';
+        return '!!self.keys[P.getKeyCode(' + val(e[1]) + ')]';
 
       // } else if (e[0] === 'isLoud') {
 
@@ -4917,7 +4884,7 @@ P.compile = (function() {
         return +e !== 0 && e !== '' && e !== 'false' && e !== false;
       }
       var v = boolval(e);
-      return v != null ? v : val(e, false, true);
+      return v != null ? v : 'bool(' + val(e, false, true) + ')';
     };
 
     var num = function(e) {
@@ -4928,20 +4895,20 @@ P.compile = (function() {
         return +e || 0;
       }
       var v = numval(e);
-      return v != null ? v : val(e, true);
+      return v != null ? v : '(+' + val(e, true) + ' || 0)';
     };
 
     var beatHead = function(dur) {
       source += 'save();\n';
-      source += 'R.start = self.now;\n';
+      source += 'R.start = self.now();\n';
       source += 'R.duration = ' + num(dur) + ' * 60 / self.tempoBPM;\n';
-      source += 'var first = true;\n';
+      source += 'R.first = true;\n';
     };
 
     var beatTail = function(dur) {
         var id = label();
-        source += 'if (self.now - R.start < R.duration * 1000 || first) {\n';
-        source += '  var first;\n';
+        source += 'if (self.now() - R.start < R.duration * 1000 || R.first) {\n';
+        source += '  R.first = false;\n';
         forceQueue(id);
         source += '}\n';
 
@@ -4950,13 +4917,13 @@ P.compile = (function() {
 
     var wait = function(dur) {
       source += 'save();\n';
-      source += 'R.start = self.now;\n';
+      source += 'R.start = self.now();\n';
       source += 'R.duration = ' + dur + ';\n';
-      source += 'var first = true;\n';
+      source += 'R.first = true;\n';
 
       var id = label();
-      source += 'if (self.now - R.start < R.duration * 1000 || first) {\n';
-      source += '  var first;\n';
+      source += 'if (self.now() - R.start < R.duration * 1000 || R.first) {\n';
+      source += '  R.first = false;\n';
       forceQueue(id);
       source += '}\n';
 
@@ -4964,35 +4931,27 @@ P.compile = (function() {
     };
 
     var noRGB = '';
-    noRGB += 'if (S.penCSS) {\n';
+    noRGB += 'if (S.penRGBA) {\n';
     noRGB += '  var hsl = rgb2hsl(S.penColor & 0xffffff);\n';
     noRGB += '  S.penHue = hsl[0];\n';
     noRGB += '  S.penSaturation = hsl[1];\n';
     noRGB += '  S.penLightness = hsl[2];\n';
-    noRGB += '  S.penCSS = null;';
+    noRGB += '  S.penRGBA = false;';
     noRGB += '}\n';
 
-    var visual = 0;
     var compile = function(block) {
       if (LOG_PRIMITIVES) {
         source += 'console.log(' + val(block[0]) + ');\n';
       }
-
+		
+	
+		
       if (['turnRight:', 'turnLeft:', 'heading:', 'pointTowards:', 'setRotationStyle', 'lookLike:', 'nextCostume', 'say:duration:elapsed:from:', 'say:', 'think:duration:elapsed:from:', 'think:', 'changeGraphicEffect:by:', 'setGraphicEffect:to:', 'filterReset', 'changeSizeBy:', 'setSizeTo:', 'comeToFront', 'goBackByLayers:'].indexOf(block[0]) !== -1) {
-        if (visual < 2) {
-          source += 'if (S.visible) VISUAL = true;\n';
-          visual = 2;
-        } else if (DEBUG) source += '/* visual: 2 */\n';
+        source += 'if (S.visible) VISUAL = true;\n';
       } else if (['forward:', 'gotoX:y:', 'gotoSpriteOrMouse:', 'changeXposBy:', 'xpos:', 'changeYposBy:', 'ypos:', 'bounceOffEdge', 'glideSecs:toX:y:elapsed:from:'].indexOf(block[0]) !== -1) {
-        if (visual < 1) {
-          source += 'if (S.visible || S.isPenDown) VISUAL = true;\n';
-          visual = 1;
-        } else if (DEBUG) source += '/* visual: 1 */\n';
-      } else if (['showBackground:', 'startScene', 'nextBackground', 'nextScene', 'startSceneAndWait', 'show', 'hide', 'putPenDown', 'stampCostume', 'showVariable:', 'hideVariable:', 'doAsk', 'setVolumeTo:', 'changeVolumeBy:', 'setTempoTo:', 'changeTempoBy:'].indexOf(block[0]) !== -1) {
-        if (visual < 3) {
-          source += 'VISUAL = true;\n';
-          visual = 3;
-        } else if (DEBUG) source += '/* visual: 3 */\n';
+        source += 'if (S.visible || S.isPenDown) VISUAL = true;\n';
+      } else if (['showBackground:', 'startScene', 'nextBackground', 'nextScene', 'startSceneAndWait', 'show', 'hide', 'putPenDown', 'stampCostume', 'showVariable:', 'hideVariable:','showList','hideList', 'doAsk', 'setVolumeTo:', 'changeVolumeBy:', 'setTempoTo:', 'changeTempoBy:'].indexOf(block[0]) !== -1) {
+        source += 'VISUAL = true;\n';
       }
 
       if (block[0] === 'forward:') { /* Motion */
@@ -5058,24 +5017,25 @@ P.compile = (function() {
 
       } else if (block[0] === 'showBackground:' ||
                  block[0] === 'startScene') {
-
+		
+		source += 'var bgname = self.getCostumeName();\n';
         source += 'self.setCostume(' + val(block[1]) + ');\n';
-        source += 'var threads = sceneChange();\n';
-        source += 'if (threads.indexOf(BASE) !== -1) {return;}\n';
+        source += 'var threads = (self.getCostumeName()!= bgname)? sceneChange(): "";\n';
+        source += 'if (threads.indexOf(BASE) !== -1) return;\n';
 
       } else if (block[0] === 'nextBackground' ||
                  block[0] === 'nextScene') {
 
         source += 'S.showNextCostume();\n';
         source += 'var threads = sceneChange();\n';
-        source += 'if (threads.indexOf(BASE) !== -1) {return;}\n';
+        source += 'if (threads.indexOf(BASE) !== -1) return;\n';
 
       } else if (block[0] === 'startSceneAndWait') {
 
         source += 'save();\n';
         source += 'self.setCostume(' + val(block[1]) + ');\n';
         source += 'R.threads = sceneChange();\n';
-        source += 'if (R.threads.indexOf(BASE) !== -1) {return;}\n';
+        source += 'if (R.threads.indexOf(BASE) !== -1) return;\n';
         var id = label();
         source += 'if (!running(R.threads)) {\n';
         forceQueue(id);
@@ -5086,11 +5046,11 @@ P.compile = (function() {
 
         source += 'save();\n';
         source += 'R.id = S.say(' + val(block[1]) + ', false);\n';
-        source += 'R.start = self.now;\n';
+        source += 'R.start = self.now();\n';
         source += 'R.duration = ' + num(block[2]) + ';\n';
 
         var id = label();
-        source += 'if (self.now - R.start < R.duration * 1000) {\n';
+        source += 'if (self.now() - R.start < R.duration * 1000) {\n';
         forceQueue(id);
         source += '}\n';
 
@@ -5107,11 +5067,11 @@ P.compile = (function() {
 
         source += 'save();\n';
         source += 'R.id = S.say(' + val(block[1]) + ', true);\n';
-        source += 'R.start = self.now;\n';
+        source += 'R.start = self.now();\n';
         source += 'R.duration = ' + num(block[2]) + ';\n';
 
         var id = label();
-        source += 'if (self.now - R.start < R.duration * 1000) {\n';
+        source += 'if (self.now() - R.start < R.duration * 1000) {\n';
         forceQueue(id);
         source += '}\n';
 
@@ -5138,13 +5098,13 @@ P.compile = (function() {
 
       } else if (block[0] === 'changeSizeBy:') {
 
-        source += 'var f = S.scale + ' + num(block[1]) + ' / 100;\n';
-        source += 'S.scale = f < 0 ? 0 : f;\n';
-
+        source += 'S.scale += ' + num(block[1]) + ' / 100;\n';
+		    source += 'if (S.scale < 0) S.scale = 0;\n';
+		
       } else if (block[0] === 'setSizeTo:') {
 
-        source += 'var f = ' + num(block[1]) + ' / 100;\n';
-        source += 'S.scale = f < 0 ? 0 : f;\n';
+        source += 'S.scale = ' + num(block[1]) + ' / 100;\n';
+		    source += 'if (S.scale < 0) S.scale = 0;\n';
 
       } else if (block[0] === 'show') {
 
@@ -5247,45 +5207,57 @@ P.compile = (function() {
 
       } else if (block[0] === 'clearPenTrails') { /* Pen */
 
-        source += 'self.penCanvas.width = 480 * self.maxZoom;\n';
-        source += 'self.penContext.scale(self.maxZoom, self.maxZoom);\n';
-        source += 'self.penContext.lineCap = "round";\n'
+        //source += 'self.penCanvas.width = 480 * self.maxZoomX;\n';
+		    //source += 'self.penCanvas.height = 360 * self.maxZoomY;\n';
+        //source += 'self.penContext.scale(self.maxZoomX, self.maxZoomY);\n';
+        //source += 'self.penContext.lineCap = "butt";\n'
+        source += 'self.penContext.clear(self.penContext.COLOR_BUFFER_BIT);\n';
 
       } else if (block[0] === 'putPenDown') {
 
         source += 'S.isPenDown = true;\n';
+        //source += 'S.penState = false;\n';
         source += 'S.dotPen();\n';
 
       } else if (block[0] === 'putPenUp') {
 
         source += 'S.isPenDown = false;\n';
-        source += 'S.penState = null;\n';
+        //source += 'if(!S.penState)\n';
+        //source += 'S.dotPen();\n';
+        //source += 'S.penState = null;\n';
 
       } else if (block[0] === 'penColor:') {
 
         source += 'var c = ' + num(block[1]) + ';\n';
         source += 'S.penColor = c;\n';
         source += 'var a = (c >> 24 & 0xff) / 0xff;\n';
-        source += 'S.penCSS = "rgba(" + (c >> 16 & 0xff) + "," + (c >> 8 & 0xff) + "," + (c & 0xff) + ", " + (a || 1) + ")";\n';
+        source += 'S.penRGBA = true;\n';
+        source += 'S.penRed = c >> 16 & 0xff;\n';
+        source += 'S.penGreen = c >> 8 & 0xff;\n';
+        source += 'S.penBlue = c & 0xff;\n';
+        source += 'S.penAlpha = a || 1;\n';
 
       } else if (block[0] === 'setPenHueTo:') {
 
         source += noRGB;
         source += 'S.penHue = ' + num(block[1]) + ' * 360 / 200;\n';
         source += 'S.penSaturation = 100;\n';
+        source += 'S.penRGBA = false;\n';
 
       } else if (block[0] === 'changePenHueBy:') {
-
+        
         source += noRGB;
         source += 'S.penHue += ' + num(block[1]) + ' * 360 / 200;\n';
         source += 'S.penSaturation = 100;\n';
-
+        source += 'S.penRGBA = false;\n';
+        
       } else if (block[0] === 'setPenShadeTo:') {
 
         source += noRGB;
         source += 'S.penLightness = ' + num(block[1]) + ' % 200;\n';
         source += 'if (S.penLightness < 0) S.penLightness += 200;\n';
         source += 'S.penSaturation = 100;\n';
+        source += 'S.penRGBA = false;\n';
 
       } else if (block[0] === 'changePenShadeBy:') {
 
@@ -5293,6 +5265,7 @@ P.compile = (function() {
         source += 'S.penLightness = (S.penLightness + ' + num(block[1]) + ') % 200;\n';
         source += 'if (S.penLightness < 0) S.penLightness += 200;\n';
         source += 'S.penSaturation = 100;\n';
+        source += 'S.penRGBA = false;\n';
 
       } else if (block[0] === 'penSize:') {
 
@@ -5308,31 +5281,38 @@ P.compile = (function() {
 
         source += 'S.draw(self.penContext);\n';
 
-      } else if (block[0] === 'setVar:to:') { /* Data */
-
-        source += varRef(block[1]) + ' = ' + val(block[2]) + ';\n';
+	   source += varRef(block[1]) + ' = ' + val(block[2]) + ';\n';
 
       } else if (block[0] === 'changeVar:by:') {
-
+		  
+		 
+				
         var ref = varRef(block[1]);
+		
+		
+		//source +=	'console.log('+varRef(block[1])+");\n";	
         source += ref + ' = (+' + ref + ' || 0) + ' + num(block[2]) + ';\n';
 
       } else if (block[0] === 'append:toList:') {
 
         source += 'appendToList(' + listRef(block[2]) + ', ' + val(block[1]) + ');\n';
-
+		source += 'self.updateList(' + val(block[2]) + ');\n';
+		
       } else if (block[0] === 'deleteLine:ofList:') {
 
         source += 'deleteLineOfList(' + listRef(block[2]) + ', ' + val(block[1]) + ');\n';
+		source += 'self.updateList(' + val(block[2]) + ');\n';
 
       } else if (block[0] === 'insert:at:ofList:') {
 
         source += 'insertInList(' + listRef(block[3]) + ', ' + val(block[2]) + ', '+ val(block[1]) + ');\n';
-
+		source += 'self.updateList(' + val(block[2]) + ');\n';
+		
       } else if (block[0] === 'setLine:ofList:to:') {
 
         source += 'setLineOfList(' + listRef(block[2]) + ', ' + val(block[1]) + ', '+ val(block[3]) + ');\n';
-
+		source += 'self.updateList(' + val(block[2]) + ');\n';
+		
       } else if (block[0] === 'showVariable:' || block[0] === 'hideVariable:') {
 
         var isShow = block[0] === 'showVariable:';
@@ -5340,23 +5320,33 @@ P.compile = (function() {
           throw new Error('Dynamic variables are not supported');
         }
         var o = object.vars[block[1]] !== undefined ? 'S' : 'self';
+			
+		
+		
+		
+		
         source += o + '.showVariable(' + val(block[1]) + ', ' + isShow + ');\n';
 
-      // } else if (block[0] === 'showList:') {
-
-      // } else if (block[0] === 'hideList:') {
-
+       } else if (block[0] === 'showList:') {
+				source += 'self.showList(' + val(block[1]) + ');\n';
+       } else if (block[0] === 'hideList:') {
+				 source += 'self.hideList(' + val(block[1]) + ');\n';
       } else if (block[0] === 'broadcast:') { /* Control */
 
         source += 'var threads = broadcast(' + val(block[1]) + ');\n';
-        source += 'if (threads.indexOf(BASE) !== -1) {return;}\n';
+        source += 'if (threads.indexOf(BASE) !== -1) return;\n';
 
       } else if (block[0] === 'call') {
-
-        if (DEBUG && block[1] === 'phosphorus: debug') {
+        
+        if (DEBUG && block[1] === 'sulf.debug') {
           source += 'debugger;\n';
+        } else if (block[1] === 'sulf.script %s'){
+        console.log('**********   Found embedded JavaScript:   **********');
+          console.log(String(block[2].replace(';', ';\n')));
+          console.log('**********    End embedded JavaScript.    **********');
+          source += block[2];
         } else {
-          source += 'call(S.procedures[' + val(block[1]) + '], ' + nextLabel() + ', [';
+          source += 'call(' + val(block[1]) + ', ' + nextLabel() + ', [';
           for (var i = 2; i < block.length; i++) {
             if (i > 2) {
               source += ', ';
@@ -5371,7 +5361,7 @@ P.compile = (function() {
 
         source += 'save();\n';
         source += 'R.threads = broadcast(' + val(block[1]) + ');\n';
-        source += 'if (R.threads.indexOf(BASE) !== -1) {return;}\n';
+        source += 'if (R.threads.indexOf(BASE) !== -1) return;\n';
         var id = label();
         source += 'if (running(R.threads)) {\n';
         forceQueue(id);
@@ -5456,7 +5446,7 @@ P.compile = (function() {
       } else if (block[0] === 'glideSecs:toX:y:elapsed:from:') {
 
         source += 'save();\n';
-        source += 'R.start = self.now;\n';
+        source += 'R.start = self.now();\n';
         source += 'R.duration = ' + num(block[1]) + ';\n';
         source += 'R.baseX = S.scratchX;\n';
         source += 'R.baseY = S.scratchY;\n';
@@ -5464,7 +5454,7 @@ P.compile = (function() {
         source += 'R.deltaY = ' + num(block[3]) + ' - S.scratchY;\n';
 
         var id = label();
-        source += 'var f = (self.now - R.start) / (R.duration * 1000);\n';
+        source += 'var f = (self.now() - R.start) / (R.duration * 1000);\n';
         source += 'if (f > 1) f = 1;\n';
         source += 'S.moveTo(R.baseX + f * R.deltaX, R.baseY + f * R.deltaY);\n';
 
@@ -5498,8 +5488,9 @@ P.compile = (function() {
         source += '}\n';
 
       } else if (block[0] === 'wait:elapsed:from:') {
-
-        wait(num(block[1]));
+		
+			wait(num(block[1]));
+		
 
       } else if (block[0] === 'warpSpeed') {
 
@@ -5526,7 +5517,7 @@ P.compile = (function() {
         source += '}\n';
 
       } else if (block[0] === 'doAsk') { /* Sensing */
-
+				
         source += 'R.id = self.nextPromptId++;\n';
 
         var id = label();
@@ -5535,7 +5526,7 @@ P.compile = (function() {
         source += '}\n';
 
         source += 'S.ask(' + val(block[1]) + ');\n';
-
+		 
         var id = label();
         source += 'if (self.promptId === R.id) {\n';
         forceQueue(id);
@@ -5543,13 +5534,16 @@ P.compile = (function() {
 
       } else if (block[0] === 'timerReset') {
 
-        source += 'self.timerStart = self.now;\n';
+        source += 'self.timerStart = self.now();\n';
 
       } else {
 
         warn('Undefined command: ' + block[0]);
 
       }
+	  
+	
+	 
     };
 
     var source = '';
@@ -5559,27 +5553,21 @@ P.compile = (function() {
     if (script[0][0] === 'procDef') {
       var inputs = script[0][2];
       var types = script[0][1].match(/%[snmdcb]/g) || [];
-      var used = [];
+      for (var i = types.length; i--;) {
+        var t = types[i];
+        if (t === '%d' || t === '%n' || t === '%c') {
+          source += 'C.numargs[' + i + '] = +C.args[' + i + '] || 0;\n';
+        } else if (t === '%b') {
+          source += 'C.boolargs[' + i + '] = bool(C.args[' + i + ']);\n';
+        }
+      }
     }
 
     for (var i = 1; i < script.length; i++) {
       compile(script[i]);
     }
-
+	
     if (script[0][0] === 'procDef') {
-      var pre = '';
-      for (var i = types.length; i--;) if (used[i]) {
-        var t = types[i];
-        if (t === '%d' || t === '%n' || t === '%c') {
-          pre += 'C.numargs[' + i + '] = +C.args[' + i + '] || 0;\n';
-        } else if (t === '%b') {
-          pre += 'C.boolargs[' + i + '] = bool(C.args[' + i + ']);\n';
-        }
-      }
-      source = pre + source;
-      for (var i = 1, l = fns.length; i < l; ++i) {
-        fns[i] += pre.length;
-      }
       source += 'endCall();\n';
       source += 'return;\n';
     }
@@ -5594,11 +5582,9 @@ P.compile = (function() {
       while (here < length) {
         var i = source.indexOf('{', here);
         var j = source.indexOf('}', here);
-        var k = source.indexOf('return;', here);
-        if (k === -1) k = length;
         if (i === -1 && j === -1) {
           if (!shouldDelete) {
-            result += source.slice(here, k);
+            result += source.slice(here);
           }
           break;
         }
@@ -5616,10 +5602,6 @@ P.compile = (function() {
             here = j + 1;
           }
         } else {
-          if (brackets === 0 && k < i && k < j) {
-            result += source.slice(here, k);
-            break;
-          }
           if (i < j) {
             result += source.slice(here, i + 1);
             brackets++;
@@ -5690,22 +5672,29 @@ P.compile = (function() {
     warnings = Object.create(null);
 
     compileScripts(stage);
-
+    
     for (var i = 0; i < stage.children.length; i++) {
-      compileScripts(stage.children[i]);
+      if (!stage.children[i].cmd) {
+        compileScripts(stage.children[i]);
+      }
     }
 
     for (var key in warnings) {
       console.warn(key + (warnings[key] > 1 ? ' (repeated ' + warnings[key] + ' times)' : ''));
     }
-
   };
 
+	
+  
 }());
 
 P.runtime = (function() {
   'use strict';
 
+	
+	
+  
+  
   var self, S, R, STACK, C, WARP, CALLS, BASE, THREAD, IMMEDIATE, VISUAL;
 
   var bool = function(v) {
@@ -6074,6 +6063,7 @@ P.runtime = (function() {
     };
   }
 
+  //these are javascript internal functions... what are they doing here???
   var save = function() {
     STACK.push(R);
     R = {};
@@ -6084,9 +6074,10 @@ P.runtime = (function() {
   };
 
   // var lastCalls = [];
-  var call = function(procedure, id, values) {
+  var call = function(spec, id, values) {
     // lastCalls.push(spec);
     // if (lastCalls.length > 10000) lastCalls.shift();
+    var procedure = S.procedures[spec];
     if (procedure) {
       STACK.push(R);
       CALLS.push(C);
@@ -6222,13 +6213,15 @@ P.runtime = (function() {
     P.Stage.prototype.trigger = function(event, arg) {
       var threads = [];
       for (var i = this.children.length; i--;) {
-        threads = threads.concat(this.triggerFor(this.children[i], event, arg));
+        if (this.children[i].isSprite) {
+          threads = threads.concat(this.triggerFor(this.children[i], event, arg));
+        }
       }
       return threads.concat(this.triggerFor(this, event, arg));
     };
 
     P.Stage.prototype.triggerGreenFlag = function() {
-      this.timerStart = this.rightNow();
+      this.timerStart = this.now();
       this.trigger('whenGreenFlag');
     };
 
@@ -6238,16 +6231,15 @@ P.runtime = (function() {
       addEventListener('error', this.onError);
       this.baseTime = Date.now();
       this.interval = setInterval(this.step.bind(this), 1000 / this.framerate);
-      if (audioContext) audioContext.resume();
+	  
     };
 
     P.Stage.prototype.pause = function() {
       if (this.interval) {
-        this.baseNow = this.rightNow();
+        this.baseNow = this.now();
         clearInterval(this.interval);
         delete this.interval;
         removeEventListener('error', this.onError);
-        if (audioContext) audioContext.suspend();
       }
       this.isRunning = false;
     };
@@ -6265,25 +6257,43 @@ P.runtime = (function() {
           c.remove();
           this.children.splice(i, 1);
           i -= 1;
-        } else {
+        } else if (c.isSprite) {
           c.resetFilters();
           if (c.saying) c.say('');
           c.stopSounds();
         }
       }
+		
+		for(var i = 0;i < Object.keys(self.vars).length;i++){
+			if(Object.keys(self.vars)[i].substring(Object.keys(self.vars)[i].indexOf(".")+1,Object.keys(self.vars)[i].indexOf(".")+3) == 'p.' ){
+				
+				
+				 sulfCookieVars[Object.keys(self.vars)[i]] = self.vars[Object.keys(self.vars)[i]];
+			}
+			
+			
+		}
+	
+	   
+	  
     };
 
-    P.Stage.prototype.rightNow = function() {
+    P.Stage.prototype.now = function() {
       return this.baseNow + Date.now() - this.baseTime;
     };
 
     P.Stage.prototype.step = function() {
-      self = this;
+
+	 self = this;
+		for(var i = 0;i < Object.keys(sulfCloudVars).length;i++){
+			this.vars[Object.keys(sulfCloudVars)[i]] = sulfCloudVars[Object.keys(sulfCloudVars)[i]];
+		}
+		
+		
       VISUAL = false;
       var start = Date.now();
       do {
         var queue = this.queue;
-        this.now = this.rightNow();
         for (THREAD = 0; THREAD < queue.length; THREAD++) {
           if (queue[THREAD]) {
             S = queue[THREAD].sprite;
@@ -6320,7 +6330,7 @@ P.runtime = (function() {
     P.Stage.prototype.handleError = function(e) {
       console.error(e.stack);
     };
-
+    
   }());
 
   /*
