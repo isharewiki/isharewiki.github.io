@@ -847,11 +847,11 @@ var P = (function() {
   IO.loadCostume = function(data) {
     IO.loadMD5(data.baseLayerMD5, data.baseLayerID, function(asset) {
       data.$image = asset;
-    });
+    }, false);
     if (data.textLayerMD5) {
       IO.loadMD5(data.textLayerMD5, data.textLayerID, function(asset) {
         data.$text = asset;
-      });
+      }, false);
     }
   };
 
@@ -862,9 +862,84 @@ var P = (function() {
   };
 
   IO.fixSVG = function(svg, element) {
-    if (element.nodeType !== 1) return;
+	  
+	  
+	  
+    if (element.nodeType !== 1) return element;
+    if (element.nodeName.slice(0, 4).toLowerCase() === 'svg:') {
+     /*
+      var newElement = document.createElementNS('https://www.w3.org/2000/svg', element.localName);
+      var attributes = element.attributes;
+      var newAttributes = newElement.attributes;
+      for (var i = attributes.length; i--;) {
+        newAttributes.setNamedItemNS(attributes[i].cloneNode());
+      }
+      while (element.firstChild) {
+        newElement.appendChild(element.firstChild);
+      }
+      element = newElement;
+     */
+    }
+    
+    //Embed fonts in svg:
+    if (element.nodeName === 'svg') {
+      var defs = document.createElement('defs');
+      element.appendChild(defs);
+      
+      var style = document.createElement('style');
+      defs.appendChild(style);
+      
+      var embedText = '';
+      
+      
+      if(element.querySelector('[font-family="Scratch"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Scratch;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Scratch;
+        embedText += '\");\n';
+        embedText += '}\n';
+      }
+      
+      if(element.querySelector('[font-family="Donegal"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Donegal One;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Donegal;
+        embedText += '\");\n';
+        embedText += '}\n';      
+      }
+      
+      if(element.querySelector('[font-family="Gloria"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Gloria Hallelujah;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Gloria;
+        embedText += '\");\n';
+        embedText += '}\n';      
+      }
+      
+      if(element.querySelector('[font-family="Marker"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Permanent Marker;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Marker;
+        embedText += '\");\n';
+        embedText += '}\n';      
+      }
+      
+      if(element.querySelector('[font-family="Mystery"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Mystery Quest;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Mystery;
+        embedText += '\");\n';
+        embedText += '}\n';            
+      }
+      
+      var info = document.createTextNode(embedText);
+      style.appendChild(info);
+    }
+    
     if (element.nodeName === 'text') {
+      
       var font = element.getAttribute('font-family') || '';
+      
       font = IO.FONTS[font] || font;
       if (font) {
         element.setAttribute('font-family', font);
@@ -874,17 +949,29 @@ var P = (function() {
       if (!size) {
         element.setAttribute('font-size', size = 18);
       }
-      var bb = element.getBBox();
+			
+			
+			// Set default fill for svgs that the Scratch exporter forgets...
+			if(element.getAttribute('fill') === 'none')
+				element.setAttribute('fill', '#7F7F7F');
+      
+      
+      //TODO: Find out what actual values have to be put here.
+      //element.setAttribute('x', 0);
+      //element.setAttribute('y', size*IO.LINE_HEIGHTS[font]);
+      var bb = element ? element.getBBox() : null;
       var x = 4 - .6 * element.transform.baseVal.consolidate().matrix.a;
       var y = (element.getAttribute('y') - bb.y) * 1.1;
       element.setAttribute('x', x);
       element.setAttribute('y', y);
+      
+      
       var lines = element.textContent.split('\n');
       if (lines.length > 1) {
         element.textContent = lines[0];
         var lineHeight = IO.LINE_HEIGHTS[font] || 1;
         for (var i = 1, l = lines.length; i < l; i++) {
-          var tspan = document.createElementNS(null, 'tspan');
+          var tspan = document.createElementNS("http://www.w3.org/2000/svg", 'tspan');
           tspan.textContent = lines[i];
           tspan.setAttribute('x', x);
           tspan.setAttribute('y', y + size * i * lineHeight);
