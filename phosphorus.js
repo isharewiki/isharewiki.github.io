@@ -4277,10 +4277,145 @@ var P = (function() {
   };
 
 }());
+var sulfCookieVars = {};
+var sulfUsername;
+var sulfCookieSaved = {};
+
+var loadCookie = function(){
+	
+	console.log("loadCookie");
+	
+	var name = projectID + "=";
+    var decodedCookie = decodeURIComponent(document.cookie);
+	
+    var ca = decodedCookie.split(';');
+    for(var i = 0; i <ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+			
+			
+          sulfCookieSaved = JSON.parse(lzw_decode(c.substring(name.length, c.length)));
+		 
+		  
+        }
+    }
+
+	
+	
+		
+		
+		
+		if(typeof sulfCookieSaved["sulf.p.username"] == 'undefined'){
+		
+		sulfUsername = "Player"+Math.floor((Math.random() * 999999) + 1);
+		sulfCookieVars["sulf.p.username"] = sulfUsername;
+		console.log(sulfUsername);
+	}else{
+		
+		sulfUsername = sulfCookieSaved["sulf.p.username"];
+	console.log("username:"+sulfUsername);
+		
+	}
+	
+	
+	
+};
+
+window.onbeforeunload = WindowCloseHanlder;
+function WindowCloseHanlder(){	
+	
+	 sulfVarsload = 'undefined';
+	
+	stage.stopAll();
+
+	setCookie();
+	
+	 
+}
+
+
+function setCookie() {
+		console.log(firstRunSulfVars);
+	 if(firstRunSulfVars == true){
+		console.log('no Sulfurous Variables used');
+		return;
+	}else if(sulfCookieVars == null){
+	
+		console.log('sulfCookieVars undefined');
+		return;
+	
+	}
+	
+	
+	cvalue = lzw_encode(JSON.stringify(sulfCookieVars));
+	
+    var d = new Date();
+    d.setTime(d.getTime() + (10000*24*60*60*1000));
+    var expires = "expires="+ d.toUTCString();
+    document.cookie =projectID + "=" + cvalue + ";" + expires + ";path=/";
+}
+
+function lzw_encode(s) {
+    var dict = {};
+    var data = (s + "").split("");
+    var out = [];
+    var currChar;
+    var phrase = data[0];
+    var code = 256;
+    for (var i=1; i<data.length; i++) {
+        currChar=data[i];
+        if (dict[phrase + currChar] != null) {
+            phrase += currChar;
+        }
+        else {
+            out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+            dict[phrase + currChar] = code;
+            code++;
+            phrase=currChar;
+        }
+    }
+    out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+    for (var i=0; i<out.length; i++) {
+        out[i] = String.fromCharCode(out[i]);
+    }
+    return out.join("");
+}
+
+// Decompress an LZW-encoded string
+function lzw_decode(s) {
+    var dict = {};
+    var data = (s + "").split("");
+    var currChar = data[0];
+    var oldPhrase = currChar;
+    var out = [currChar];
+    var code = 256;
+    var phrase;
+    for (var i=1; i<data.length; i++) {
+        var currCode = data[i].charCodeAt(0);
+        if (currCode < 256) {
+            phrase = data[i];
+        }
+        else {
+           phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar);
+        }
+        out.push(phrase);
+        currChar = phrase.charAt(0);
+        dict[code] = oldPhrase + currChar;
+        code++;
+        oldPhrase = phrase;
+    }
+    return out.join("");
+}
 
 P.compile = (function() {
+	
+	
+	
   'use strict';
-
+  
   var LOG_PRIMITIVES;
   var DEBUG;
   // LOG_PRIMITIVES = true;
@@ -4318,7 +4453,7 @@ P.compile = (function() {
     var label = function() {
       var id = nextLabel();
       fns.push(source.length);
-      visual = 0;
+      //visual = 0;
       return id;
     };
 
