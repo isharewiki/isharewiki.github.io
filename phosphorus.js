@@ -63,7 +63,206 @@ var P = (function () {
             return this;
         };
     };
+  //  WebGL generic drawing functions to be used by Stage and Sprite.
 
+  var initShaderProgram = function(gl, vsSource, fsSource){
+    const vertexShader   = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+    
+    const shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+    
+    if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)){
+      console.warn('Could not initialize shaders. ' + gl.getProgramInfoLog(shaderProgram));
+      return null;
+    }
+    
+    return shaderProgram;
+  }
+  
+  var loadShader = function(gl, type, source){
+    const shader = gl.createShader(type);
+    
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    
+    if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+      console.warn('Could not compile shader. ' + gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    
+    return shader;
+  }
+
+  var initImgBuffers = function(gl){
+    var position = gl.createBuffer();
+    var texcoord = gl.createBuffer();
+
+    var positionLocation = [
+      -1,  1,
+       1,  1,
+      -1, -1,
+      -1, -1,
+       1, -1,
+       1,  1,
+    ];
+    
+    var texcoordLocation = [
+       0,  1,
+       1,  1,
+       0,  0,
+       0,  0,
+       1,  0,
+       1,  1,
+    ];
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, position);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  new Float32Array(positionLocation),
+                  gl.STATIC_DRAW);
+                      
+                  
+    gl.bindBuffer(gl.ARRAY_BUFFER, texcoord);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  new Float32Array(texcoordLocation),
+                  gl.STATIC_DRAW);
+                  
+    return {
+      position: position,
+      texcoord: texcoord,
+    }
+  }    
+  
+  var glMakeTexture = function(gl, canvas){
+    //console.log('glMakeTexture');
+    
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    
+    
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    
+    var textureInfo = {
+      width: canvas.width,
+      height: canvas.height,
+      texture: tex,
+    };
+    
+    return textureInfo;
+  }
+  
+  var glDrawImage = function(gl, programInfo, buffers, imgInfo, x, y, width, height, rot, originX, originY, effect, tColor){
+ 
+    var cWidth = gl.canvas.width;
+    var cHeight = gl.canvas.height;
+   
+    if(cWidth >= cHeight * 0.75)
+      var zoom = Math.max(cWidth, cHeight * 0.75);
+    else
+      var zoom = Math.max(cHeight * 1.25, cHeight);
+    
+    gl.viewport(0, cHeight - zoom * 0.875, zoom, zoom);
+    
+    gl.blendFunc(programInfo.blendSource, programInfo.blendDest);
+    gl.enable(gl.BLEND);
+    gl.disable(gl.DEPTH_TEST);   
+    
+    gl.bindTexture(gl.TEXTURE_2D, imgInfo.texture);
+    
+    gl.useProgram(programInfo.program);
+    
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);   
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.position,
+      2,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+     
+    gl.enableVertexAttribArray(programInfo.attribLocations.position);
+    
+    
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texcoord); 
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.texcoord,
+      2,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+      
+    gl.enableVertexAttribArray(programInfo.attribLocations.texcoord);   
+
+    
+    var q = quat.create();
+    quat.fromEuler(q, 0, 0, rot);
+    
+    var v = vec3.fromValues(x / 240, y / 240, 0);
+    
+    var s = vec3.fromValues(1, 1, 1);
+    
+    var o = vec3.fromValues(originX / 240, originY / 240, 0);
+    
+    var matrix = mat4.create();
+    mat4.fromRotationTranslationScaleOrigin(matrix, q, v, s, o);
+    
+    mat4.scale(matrix, matrix, vec3.fromValues(width / 480, -height / 480, 0));
+    
+    gl.uniformMatrix4fv(programInfo.uniformLocations.matrix, false, matrix);
+    
+    if(tColor) gl.uniform4fv(programInfo.uniformLocations.tColor, tColor);
+    gl.uniform1i(programInfo.uniformLocations.texture, 0);
+    gl.uniform2f(programInfo.uniformLocations.texSize, imgInfo.width, imgInfo.height);
+    
+    //Effects:
+    //effect[0] = color
+    //effect[1] = fisheye
+    //effect[2] = whirl
+    //effect[3] = pixelate
+    //effect[4] = mosaic
+    //effect[5] = brightness
+    //effect[6] = ghost
+
+    if(!effect) effect = [0, 0, 0, 1, 1, 0, 1];
+      
+	
+	 ;
+	  if(effect[5] > 0){
+		 effect[5] = effect[5] /90 * 30 ;
+		 effect[0] = effect[0] + effect[5];
+	  }
+	  
+	
+    var colorMatrix = mat4.create();
+    mat4.fromRotation(colorMatrix, effect[0], vec3.fromValues(1.0, 1.0, 1.0));  
+      
+    //ghost, brightness
+    gl.uniform2f(programInfo.uniformLocations.colorEffect, effect[5], effect[6]);
+    //color
+    gl.uniformMatrix4fv(programInfo.uniformLocations.colorMatrix, false, colorMatrix);
+    //texture
+    gl.uniform4f(programInfo.uniformLocations.texEffect, effect[1], effect[2], effect[3], effect[4]);
+    
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    
+    /*
+    var err
+    if(err = gl.getError()){
+      console.log('WebGL Error: ' + err);
+    }
+    */
+  }  
     var Request = function () {
         this.loaded = 0;
     };
