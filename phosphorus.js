@@ -528,9 +528,10 @@ var P = (function () {
     IO.loadScratchr2Project = function (id, callback, self) {
         var request = new CompositeRequest;
         IO.init(request);
-
+		projectID = id;
         request.defer = true;
         var url = IO.PROJECT_URL + id + '/get/';
+		console.log(url);
         request.add(IO.load(url).onLoad(function (contents) {
             try {
                 var json = IO.parseJSONish(contents);
@@ -557,8 +558,12 @@ var P = (function () {
                     request.defer = false;
                     request.getResult = function () {
                         return new Stage().fromJSON(json);
-                    };
-                }
+						} else {
+							request.defer = false;
+							request.getResult = function() {
+								return new Stage().fromJSON(json);
+							};
+						}
             } catch (e) {
                 request.error(e);
             }
@@ -613,8 +618,8 @@ var P = (function () {
         IO.init(request);
 
         try {
-            IO.zip = Object.prototype.toString.call(ab) === '[object ArrayBuffer]' ? new JSZip(ab) : ab;
-            var json = IO.parseJSONish(IO.zip.file('project.json').asText());
+            IO.zip = new JSZip(ab);
+			var json = IO.parseJSONish(IO.zip.file('project.json').asText());
 
             IO.loadProject(json);
             if (callback) request.onLoad(callback.bind(self));
@@ -678,7 +683,24 @@ var P = (function () {
             }
         }
     };
-
+  IO.arrayBufferToBase64 = function(buffer){
+    var bytes = new Uint8Array(buffer);
+    var len = buffer.byteLength;
+    var base64 = '';
+    for(var i = 0; i < len; i++){
+      base64 += String.fromCharCode(bytes[i]);
+    }
+    return btoa(base64);
+  }
+  IO.base64ToArrayBuffer = function(base64){
+    var binaryString = atob(base64);
+    var len = binaryString.length;
+    var bytes = new Uint8Array(len);
+    for(var i = 0; i < len; i++){
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
     IO.loadWavBuffer = function (name) {
         var request = new Request;
         IO.load(IO.SOUNDBANK_URL + wavFiles[name], function (ab) {
@@ -799,6 +821,20 @@ var P = (function () {
         data.variables = data.variables || [];
         data.lists = data.lists || [];
     };
+	console.log(data.lists);		
+		 //pf temp (dirty) hack for ASCII hack lists...		
+	    if (data && data.lists && data.lists.length) {		
+	        for (var ha = data.lists.length; ha--;)		
+		{		
+		    if (data.lists[ha].listName == "ASCII" && data.lists[ha].contents.length != 133) { // 2nd part ugh (skips GB ROM) !!!		
+		        ASCII = true;		
+			console.log("ASCII hack detected.");		
+		    }		
+		}		
+	    } 
+	
+  };
+  	//process an array of several inputs (such as costumes, sounds, ...)
 
     IO.loadArray = function (data, process) {
         if (!data) return [];
@@ -817,11 +853,11 @@ var P = (function () {
     IO.loadCostume = function (data) {
         IO.loadMD5(data.baseLayerMD5, data.baseLayerID, function (asset) {
             data.$image = asset;
-        });
+        }, false);
         if (data.textLayerMD5) {
             IO.loadMD5(data.textLayerMD5, data.textLayerID, function (asset) {
                 data.$text = asset;
-            });
+            }, false);
         }
     };
 
@@ -833,6 +869,61 @@ var P = (function () {
 
     IO.fixSVG = function (svg, element) {
         if (element.nodeType !== 1) return;
+		if (element.nodeName.slice(0, 4).toLowerCase() === 'svg:') {
+    //Embed fonts in svg:
+    if (element.nodeName === 'svg') {
+      var defs = document.createElement('defs');
+      element.appendChild(defs);
+      
+      var style = document.createElement('style');
+      defs.appendChild(style);
+      
+      var embedText = '';
+      
+      
+      if(element.querySelector('[font-family="Scratch"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Scratch;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Scratch;
+        embedText += '\");\n';
+        embedText += '}\n';
+      }
+      
+      if(element.querySelector('[font-family="Donegal"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Donegal One;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Donegal;
+        embedText += '\");\n';
+        embedText += '}\n';      
+      }
+      
+      if(element.querySelector('[font-family="Gloria"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Gloria Hallelujah;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Gloria;
+        embedText += '\");\n';
+        embedText += '}\n';      
+      }
+      
+      if(element.querySelector('[font-family="Marker"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Permanent Marker;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Marker;
+        embedText += '\");\n';
+        embedText += '}\n';      
+      }
+      
+      if(element.querySelector('[font-family="Mystery"]')){
+        embedText += '@font-face{\n';
+        embedText += 'font-family: Mystery Quest;\nsrc: url(\"data:application/x-font-ttf;base64,';
+        embedText += F.Mystery;
+        embedText += '\");\n';
+        embedText += '}\n';            
+      }
+      
+      var info = document.createTextNode(embedText);
+      style.appendChild(info);
+    }
         if (element.nodeName === 'text') {
             var font = element.getAttribute('font-family') || '';
             font = IO.FONTS[font] || font;
@@ -844,7 +935,10 @@ var P = (function () {
             if (!size) {
                 element.setAttribute('font-size', size = 18);
             }
-            var bb = element.getBBox();
+			// Set default fill for svgs that the Scratch exporter forgets...
+			if(element.getAttribute('fill') === 'none')
+				element.setAttribute('fill', '#7F7F7F');			
+            var bb = element ? element.getBBox() : null;
             var x = 4 - .6 * element.transform.baseVal.consolidate().matrix.a;
             var y = (element.getAttribute('y') - bb.y) * 1.1;
             element.setAttribute('x', x);
@@ -854,7 +948,7 @@ var P = (function () {
                 element.textContent = lines[0];
                 var lineHeight = IO.LINE_HEIGHTS[font] || 1;
                 for (var i = 1, l = lines.length; i < l; i++) {
-                    var tspan = document.createElementNS(null, 'tspan');
+                    var tspan = document.createElementNS(http://www.w3.org/2000/svg, 'tspan');
                     tspan.textContent = lines[i];
                     tspan.setAttribute('x', x);
                     tspan.setAttribute('y', y + size * i * lineHeight);
@@ -867,9 +961,68 @@ var P = (function () {
             element.setAttribute('x', 0);
             element.setAttribute('y', 0);
         }
-        [].forEach.call(element.childNodes, IO.fixSVG.bind(null, svg));
-    };
-
+        
+    if (element.nodeName === 'linearGradient'){
+      element.setAttribute('id', element.getAttribute('id') + svg.getAttribute('id'));
+        element.setAttribute('gradientUnits', 'objectBoundingBox');
+        //I really don't know what kind of algorithm scratch is following here, so this is just guesswork.
+        var x1 = Number(element.getAttribute('x1'));
+        var x2 = Number(element.getAttribute('x2'));
+        var y1 = Number(element.getAttribute('y1'));
+        var y2 = Number(element.getAttribute('y2'));
+        
+        if(x1 === x2){
+          x1 = 0;
+          x2 = 0;
+        }
+        else if(x1 < x2){
+          x1 = 0;
+          x2 = 1;
+        }
+        else{
+          x1 = 1;
+          x2 = 0;
+        }
+        if(y1 === y2){
+          y1 = 0;
+          y2 = 0;
+        }
+        else if(y1 < y2){
+          y1 = 0;
+          y2 = 1;
+        }
+        else{
+          y1 = 1;
+          y2 = 0;
+        }
+        
+        element.setAttribute('x1', x1);
+        element.setAttribute('x2', x2);
+        element.setAttribute('y1', y1);
+        element.setAttribute('y2', y2);
+ 
+    }
+	
+		if(element.nodeName === 'radialGradient'){
+			element.setAttribute('id', element.getAttribute('id') + svg.getAttribute('id'));
+			element.setAttribute('gradientUnits', 'objectBoundingBox');
+		}
+    
+    if (element.getAttribute('fill') ? element.getAttribute('fill').indexOf("url") > -1 : false){
+      element.setAttribute('fill', element.getAttribute('fill').replace(/.$/, svg.getAttribute('id')));
+    }
+    
+    if (element.getAttribute('stroke') ? element.getAttribute('stroke').indexOf("url") > -1 : false){
+      element.setAttribute('stroke', element.getAttribute('stroke').replace(/.$/, svg.getAttribute('id')));
+    }		
+    [].forEach.call(element.childNodes, function(child){
+	  var newChild = IO.fixSVG(svg, child);
+      if (newChild !== child) {
+        element.replaceChild(newChild, child);
+      }
+	});
+	return element;
+  };
     IO.loadMD5 = function (md5, id, callback, isAudio) {
         if (IO.zip) {
             var f = isAudio ? IO.zip.file(id + '.wav') : IO.zip.file(id + '.gif') || IO.zip.file(id + '.png') || IO.zip.file(id + '.jpg') || IO.zip.file(id + '.svg');
@@ -878,45 +1031,74 @@ var P = (function () {
         var ext = md5.split('.').pop();
         if (ext === 'svg') {
             var cb = function (source) {
+				var div = document.createElement('div');
                 var parser = new DOMParser();
                 var doc = parser.parseFromString(source, 'image/svg+xml');
                 var svg = doc.documentElement;
-                if (!svg.style) {
-                    doc = parser.parseFromString('<body>' + source, 'text/html');
-                    svg = doc.querySelector('svg');
-                }
-                svg.style.visibility = 'hidden';
-                svg.style.position = 'absolute';
-                svg.style.left = '-10000px';
-                svg.style.top = '-10000px';
-                document.body.appendChild(svg);
-                var viewBox = svg.viewBox.baseVal;
-                if (viewBox && (viewBox.x || viewBox.y)) {
-                    svg.width.baseVal.value = viewBox.width - viewBox.x;
-                    svg.height.baseVal.value = viewBox.height - viewBox.y;
-                    viewBox.x = 0;
-                    viewBox.y = 0;
-                    viewBox.width = 0;
-                    viewBox.height = 0;
-                }
-                IO.fixSVG(svg, svg);
-                document.body.removeChild(svg);
-                svg.style.visibility = svg.style.position = svg.style.left = svg.style.top = '';
+                doc = parser.parseFromString('<body>' + source, 'text/html');
+                svg = doc.querySelector('svg');
+                
+				svg.id = 'svg' + md5.split('.')[0];
+				if(svg.getAttribute('width') === '0' || svg.getAttribute('height') === '0'){
+				  svg = document.createElementNS('https://www.w3.org/2000/svg', svg.localName);
+				}
+				else{
+				  document.body.appendChild(svg);
+				  svg = IO.fixSVG(svg, svg);
+				}
+				//Some svg tags are completely emty for some reason, so we simply ignore these
+				if(!svg.style) return;		
+		        var viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : {width: 0, height: 0, x: 0, y: 0};
+				if (svg.querySelector("path") || svg.querySelector("image")) {
+				var bb = svg.getBBox();
+				viewBox.width  = svg.width.baseVal.value = Math.ceil(bb.x + bb.width + 1);
+				viewBox.height = svg.height.baseVal.value = Math.ceil(bb.y + bb.height + 1);				
+				viewBox.x = 0;
+				viewBox.y = 0;
+				}				
+				//get the viewbox of the svg
+				if (viewBox && (viewBox.x || viewBox.y)) {
+				  //svg.width.baseVal.value = viewBox.width - viewBox.x;
+				  //svg.height.baseVal.value = viewBox.height - viewBox.y;
+				  //viewBox.x = 0;
+				  //viewBox.y = 0;
+				  //viewBox.width = 0;
+				  //viewBox.height = 0;
+				  var bb = svg.getBBox();
+				  viewBox.width  = svg.width.baseVal.value = Math.ceil(bb.x + bb.width + 1);
+				  viewBox.height = svg.height.baseVal.value = Math.ceil(bb.y + bb.height + 1);	
+				  viewBox.x = 0;
+				  viewBox.y = 0;
+				}
+        svg.style['image-rendering'] = '-moz-crisp-edges';
+        svg.style['image-rendering'] = 'pixelated';
+		
+        //svg.style.overflow = 'visible';
+        //svg.style.width = '100%';
+        
+        var request = new Request;
+        var image = new Image;
 
-                var canvas = document.createElement('canvas');
-                var image = new Image;
-                callback(image);
-                // svg.style.cssText = '';
-                // console.log(md5, 'data:image/svg+xml;base64,' + btoa(div.innerHTML.trim()));
-                canvg(canvas, new XMLSerializer().serializeToString(svg), {
-                    ignoreMouse: true,
-                    ignoreAnimation: true,
-                    ignoreClear: true,
-                    renderCallback: function () {
-                        image.src = canvas.toDataURL();
-                    }
-                });
-            };
+				//serialize the svg code to a single compact string
+        var newSource = (new XMLSerializer()).serializeToString(svg)
+				//convert the svg to a base-64 string
+        image.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(newSource))); 
+        
+        //svg.style.display = 'none';
+        document.body.removeChild(svg);
+        
+        image.onload = function() {
+          if (callback) callback(image);
+          request.load();
+        };
+        image.onerror = function(e) {
+          //console.error(e, image);
+          console.log(image.src);
+          console.error(md5, image.src);
+          request.error(new Error());
+        };
+        IO.projectRequest.add(request);		
+      };
             if (IO.zip) {
                 cb(f.asText());
             } else {
@@ -971,6 +1153,7 @@ var P = (function () {
         this.vars = Object.create(null);
         this.watchers = Object.create(null);
         this.lists = Object.create(null);
+		this.listsInfo = Object.create(null);
 
         this.procedures = {};
         this.listeners = {
@@ -1022,13 +1205,49 @@ var P = (function () {
     };
 
     Base.prototype.addVariables = function (variables) {
-        for (var i = 0; i < variables.length; i++) {
-            if (variables[i].isPeristent) {
-                throw new Error('Cloud variables are not supported');
-            }
-            this.vars[variables[i].name] = variables[i].value;
-        }
-    };
+		if(firstRunSulfVars == true){
+			loadCookie();
+			firstRunSulfVars = false;
+		}
+    for (var i = 0; i < variables.length; i++) {
+      
+		
+		
+	  
+	  	if(variables[i].name.substring(variables[i].name.indexOf(".")+1,variables[i].name.indexOf(".")+3) == 'p.' ){
+				
+						try{
+							
+							this.vars[variables[i].name] = sulfCookieSaved[variables[i].name];
+							
+						}catch{
+							
+							this.vars[variables[i].name] = variables[i].value;
+							
+						}
+						
+				
+			
+				
+			}else if(variables[i].name.substring(variables[i].name.indexOf(".")+1,variables[i].name.indexOf(".")+3) == 'c.' ||variables[i].name.charAt(0) == '☁' ){
+				
+						console.log(variables[i].name);
+						if(typeof sulfCloudVars[variables[i].name] == 'undefined'){
+							this.vars[variables[i].name] = variables[i].value;
+						}else{
+							this.vars[variables[i].name] = sulfCloudVars[variables[i].name];
+						}
+						
+				
+			
+			
+				
+			}else{
+				this.vars[variables[i].name] = variables[i].value;
+			}
+      
+    }
+  };
 
     Base.prototype.addLists = function (lists) {
         for (var i = 0; i < lists.length; i++) {
@@ -1037,6 +1256,8 @@ var P = (function () {
             }
             this.lists[lists[i].listName] = lists[i].contents;
             // TODO list watchers
+			this.listsInfo[lists[i].listName] = lists[i].x + "," + lists[i].y + "," + lists[i].width + "," + lists[i].height+ "," + lists[i].visible;		
+
         }
     };
 
@@ -1056,9 +1277,15 @@ var P = (function () {
             watcher.label = (watcher.target === stage ? '' : watcher.target.objName + ': ') + name;
             watcher.param = name;
             stage.allWatchers.push(watcher);
-        }
+    } else {
+      var i = stage.children.indexOf(watcher);
+      if (i !== stage.children.length - 1) {
+        stage.children.splice(i, 1);
+        stage.children.push(watcher);
+      }
+    }
         watcher.visible = visible;
-        watcher.layout();
+        //watcher.layout();
     };
 
     Base.prototype.showNextCostume = function () {
@@ -1079,50 +1306,63 @@ var P = (function () {
     };
 
     Base.prototype.setCostume = function (costume) {
-        if (typeof costume !== 'number') {
-            costume = '' + costume;
-            for (var i = 0; i < this.costumes.length; i++) {
-                if (this.costumes[i].costumeName === costume) {
-                    this.currentCostumeIndex = i;
-                    if (this.isStage) this.updateBackdrop();
-                    if (this.saying) this.updateBubble();
-                    return;
-                }
-            }
-            if (costume === (this.isSprite ? 'next costume' : 'next backdrop')) {
-                this.showNextCostume();
-                return;
-            }
-            if (costume === (this.isSprite ? 'previous costume' : 'previous backdrop')) {
-                this.showPreviousCostume();
-                return;
-            }
+  if(typeof costume == 'string'){
+  
+		for (var i = 0; i < this.costumes.length; i++) {
+        if (this.costumes[i].costumeName === costume) {
+          this.currentCostumeIndex = i;
+          if (this.isStage) this.updateBackdrop();
+          if (this.saying) this.updateBubble();
+          return;
         }
-        var i = (Math.floor(costume) - 1 || 0) % this.costumes.length;
-        if (i < 0) i += this.costumes.length;
-        this.currentCostumeIndex = i;
-        if (this.isStage) this.updateBackdrop();
-        if (this.saying) this.updateBubble();
-    };
+      }
+      if (costume === (this.isSprite ? 'next costume' : 'next backdrop')) {
+        this.showNextCostume();
+        return;
+      }
+      if (costume === (this.isSprite ? 'previous costume' : 'previous backdrop')) {
+        this.showPreviousCostume();
+        return;
+      }
+  }
+     if(!isNaN(parseInt(costume))){
+	
+	
+		var i = (Math.round(Number(costume)) - 1) % this.costumes.length;
+		if (i < 0) i += this.costumes.length;
+		this.currentCostumeIndex = i;
+		if (this.isStage) this.updateBackdrop();
+		if (this.saying) this.updateBubble();
+	 }
+  };
+
 
     Base.prototype.setFilter = function (name, value) {
-        switch (name) {
-            case 'ghost':
-                if (value < 0) value = 0;
-                if (value > 100) value = 100;
-                break;
-            case 'brightness':
-                if (value < -100) value = -100;
-                if (value > 100) value = 100;
-                break;
-            case 'color':
-                value = value % 200;
-                if (value < 0) value += 200;
-                break;
-        }
-        this.filters[name] = value;
-        if (this.isStage) this.updateFilters();
-    };
+    var min = 0;
+    var max = 100;
+    switch (name) {
+      case 'whirl':
+      case 'fisheye':
+      case 'brightness':
+      case 'pixelate': // absolute value
+      case 'mosaic': // absolute value
+        min = -Infinity;
+        max = Infinity;
+        break;
+      case 'color':
+	  
+        value = value % 200;
+        if (value < 0) value += 200;
+        max = 200;
+		
+        break;
+    }
+    if (value < min) value = min;
+    if (value > max) value = max;
+    value = Math.min(max, Math.max(min, value));
+    this.filters[name] = value;
+    if (this.isStage) this.updateFilters();
+  };
 
     Base.prototype.changeFilter = function (name, value) {
         this.setFilter(name, this.filters[name] + value);
@@ -1193,8 +1433,7 @@ var P = (function () {
         Stage.parent.call(this);
 
         this.children = [];
-        this.allWatchers = [];
-        this.dragging = Object.create(null);
+
         this.defaultWatcherX = 10;
         this.defaultWatcherY = 10;
 
@@ -1204,20 +1443,23 @@ var P = (function () {
         this.nextPromptId = 0;
         this.tempoBPM = 60;
         this.videoAlpha = 1;
-        this.zoom = 1;
+     this.zoomX = 1;
+	  this.zoomY = 1;
         this.maxZoom = SCALE;
         this.baseNow = 0;
         this.baseTime = 0;
         this.timerStart = 0;
 
         this.keys = [];
-        this.keys.any = 0;
+		this.keys[128] = 0;
         this.rawMouseX = 0;
         this.rawMouseY = 0;
         this.mouseX = 0;
         this.mouseY = 0;
         this.mousePressed = false;
-
+			this.alpha = 0;
+			this.beta = 1;
+			this.gamma = 2;
         this.root = document.createElement('div');
         this.root.style.position = 'absolute';
         this.root.style.overflow = 'hidden';
@@ -1225,31 +1467,117 @@ var P = (function () {
         this.root.style.height = '360px';
         this.root.style.fontSize = '10px';
         this.root.style.background = '#fff';
-        this.root.style.contain = 'strict';
-        this.root.style.WebkitUserSelect =
-            this.root.style.MozUserSelect =
-                this.root.style.MSUserSelect =
-                    this.root.style.WebkitUserSelect = 'none';
+    this.root.style.WebkitUserSelect =
+    this.root.style.MozUserSelect =
+    this.root.style.MSUserSelect =
+    this.root.style.WebkitUserSelect = 'none';
 
         this.backdropCanvas = document.createElement('canvas');
         this.root.appendChild(this.backdropCanvas);
         this.backdropCanvas.width = SCALE * 480;
         this.backdropCanvas.height = SCALE * 360;
-        this.backdropContext = this.backdropCanvas.getContext('2d');
-
+    this.backdropCanvas.setAttribute('id', 'backdropCanvas');
+    this.backdropContext = this.backdropCanvas.getContext('webgl') ||
+   this.backdropCanvas.getContext('experimental-webgl');
+       if(!this.backdropContext) P.showWebGLError('backdropContext could not be initialized.');
+    
+    this.backdropContext.imgShader = initShaderProgram(this.backdropContext, Shader.imgVert, Shader.imgFrag);
+    
+    this.backdropContext.imgShaderInfo = {
+      program: this.backdropContext.imgShader,
+      attribLocations: {
+        position: this.backdropContext.getAttribLocation(this.backdropContext.imgShader, 'position'),
+        texcoord: this.backdropContext.getAttribLocation(this.backdropContext.imgShader, 'texcoord'),
+      },
+      uniformLocations: {
+        matrix:      this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'u_matrix'),
+        texture:     this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'u_texture'),
+        texSize:     this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'texSize'),
+        colorEffect: this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'colorEffect'),
+        colorMatrix: this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'colorMatrix'),
+        texEffect:   this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'texEffect'),        
+      },
+      blendSource: this.backdropContext.SRC_ALPHA,
+      blendDest: this.backdropContext.ONE_MINUS_SRC_ALPHA,      
+    }
+    this.backdropContext.imgBuffers = initImgBuffers(this.backdropContext);
+    
+    /********************   PEN Canvas   ********************/
         this.penCanvas = document.createElement('canvas');
         this.root.appendChild(this.penCanvas);
         this.penCanvas.width = SCALE * 480;
         this.penCanvas.height = SCALE * 360;
-        this.penContext = this.penCanvas.getContext('2d');
-        this.penContext.lineCap = 'round';
-        this.penContext.scale(SCALE, SCALE);
-
+    this.penCanvas.setAttribute('id', 'penCanvas');
+    //this.penCanvas.setAttribute('style', 'display: none');
+    //this.penContext = this.penCanvas.getContext('2d');
+    //this.penContext.lineCap = 'butt';
+    //this.penContext.scale(SCALE, SCALE);
+    this.penContext = this.penCanvas.getContext('webgl', {preserveDrawingBuffer: true}) ||
+                      this.penCanvas.getContext('experimental-webgl', {preserveDrawingBuffer: true});
+    
+    if(!this.penContext) P.showWebGLError('penContext could not be initialized.');
+    
+		// Scene is automatically redrawn when arrays are full.
+		// Thus, we don't need to call new float32Array() when creating the VBOs,
+		// which would cause stutter due to garbage collection.
+		//
+		// Possibly tweak values for optimal performance.
+    this.penCoords = new Float32Array(65536);
+    this.penLines  = new Float32Array(32768);
+    this.penColors = new Float32Array(65536);
+    this.penCoordIndex = 0;
+    this.penLineIndex  = 0;
+    this.penColorIndex = 0;
+    
+    // Load and compile shaders
+    this.penContext.penShader = initShaderProgram(this.penContext, Shader.penVert, Shader.penFrag);
+    
+    this.penContext.penShaderInfo = {
+      program: this.penContext.penShader,
+      attribLocations: {
+        vertexData:       this.penContext.getAttribLocation(this.penContext.penShader, 'vertexData'),
+        lineData:         this.penContext.getAttribLocation(this.penContext.penShader, 'lineData'),
+        colorData:        this.penContext.getAttribLocation(this.penContext.penShader, 'colorData'),
+      },
+      uniformLocations: {
+        projectionMatrix: this.penContext.getUniformLocation(this.penContext.penShader, 'uProjectionMatrix'),
+        modelViewMatrix:  this.penContext.getUniformLocation(this.penContext.penShader, 'uModelViewMatrix'),
+      },     
+    };  
+    this.penContext.penBuffers = {
+      position: this.penContext.createBuffer(),
+      line: this.penContext.createBuffer(),
+      color: this.penContext.createBuffer(), 
+    };
+    
+    
+    this.penContext.imgShader = initShaderProgram(this.penContext, Shader.imgVert, Shader.imgFrag);
+    
+    this.penContext.imgShaderInfo = {
+      program: this.penContext.imgShader,
+      attribLocations: {
+        position: this.penContext.getAttribLocation(this.penContext.imgShader, 'position'),
+        texcoord: this.penContext.getAttribLocation(this.penContext.imgShader, 'texcoord'),
+      },
+      uniformLocations: {
+        matrix:      this.penContext.getUniformLocation(this.penContext.imgShader, 'u_matrix'),
+        texture:     this.penContext.getUniformLocation(this.penContext.imgShader, 'u_texture'),
+        texSize:     this.penContext.getUniformLocation(this.penContext.imgShader, 'texSize'),
+        colorEffect: this.penContext.getUniformLocation(this.penContext.imgShader, 'colorEffect'),
+        colorMatrix: this.penContext.getUniformLocation(this.penContext.imgShader, 'colorMatrix'),
+        texEffect:   this.penContext.getUniformLocation(this.penContext.imgShader, 'texEffect'),             
+      },
+      blendSource: this.penContext.SRC_ALPHA,
+      blendDest: this.penContext.ONE_MINUS_SRC_ALPHA,      
+    }
+    this.penContext.imgBuffers = initImgBuffers(this.penContext);
+    /********************   COSTUME Canvas   ********************/
+    
         this.canvas = document.createElement('canvas');
         this.root.appendChild(this.canvas);
         this.canvas.width = SCALE * 480;
         this.canvas.height = SCALE * 360;
-        this.context = this.canvas.getContext('2d');
+    this.canvas.setAttribute('id', 'canvas');
 
         this.ui = document.createElement('div');
         this.root.appendChild(this.ui);
