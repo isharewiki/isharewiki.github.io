@@ -1,18 +1,15 @@
 <!doctype html>
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1.0">
-<title>Sulfurous</title>
-<link rel=icon href="img/favicon.ico">
-<link rel=stylesheet href=css/player.css>
-<link rel=stylesheet href=css/index.css>
-
-
-<script type="text/javascript" src="js/qrcode.min.js"></script>
-<script src="js/socket.io.js"></script>
+<title>ishare</title>
+<link rel=stylesheet href=player.css>
+<link rel=stylesheet href=index.css>
+<link rel=icon href="favicon.ico">
+<lang=zh-Hant-TW>
 
 <div class=area id=title-area>
-<h1 class=title>sulfurous<span class=version>WebGL v 0.94</span></h1>
-<p>Sulfurous, just like Phosphorus, runs your Scratch projects really fast by compiling them to JavaScript. Try it out by pasting a URL or project ID into the field below or <a class=dropdown>choosing an example<select id=examples>
+<h1 class=title>ishare</h1>
+<p>將你的 Scratch 專案編譯成 JavaScript，還附懶人功能，下載、用 Scratch 3.0 開啟…一應俱全… <a class=dropdown>給我 ID，我給你全世界！<select id=examples>
   <option value>
   <option value=11397100>3D Remix by DadOfMrLog
   <option value=15945630>O by DCPU-16
@@ -23,117 +20,91 @@
   <option value=34791164>gb.sb2 [Mario Land 2] by DCPU-16
   <option value=21554369>Epic Ninja by griffpatch
   <option value=15832807>Pretty by blob8108
-  
-</select></a>. You can also drag a local .sb2 project onto this page.</p>
+</select></a>.</p>
 </div>
 
 <div class=area id=player-area>
 <div class=controls>
-  <span class=stop></span>
-  <span class=pause></span>
-  <span class=flag title="Shift+click to enable turbo mode."></span>
-  <div class=turbo>Turbo Mode</div>
-  <span class=full-screen></span>
+  <span class=stop title="停止"></span>
+  <span class=pause title="暫停"></span>
+  <span class=flag title="開始（按住 Shift 並點擊可啟用加速模式）"></span>
+  <div class=turbo>加速模式</div>
+  <span class=full-screen title="全屏顯示"></span>
+  <span class=view1 onclick="view1onclick()" title="觀看專案頁"></span>
+  <span class=view2 onclick="view2onclick()" title="用 Scratch 2 編輯器打開"></span>
+  <span class=view3 onclick="view3onclick()" title="用 Scratch 3 編輯器打開"></span>
+  <span class=download id=go title="直接下載專案"></span>
+  <span class=screenshot onclick="screenshotonclick()" title="下載截圖"></span>
 </div>
 <div class=player></div>
 <div class=internal-error>
-  An internal error occurred. <a id=error-bug-link target=_blank href=https://github.com/mittagskogel/sulfurous/issues/new>Click here</a> to file a bug report.
+  哎唷，發生內部錯誤，<a id=error-bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>點擊此處回報 bug</a>。
 </div>
-<div class=webgl-error>
-  It looks like your device doesn't support WebGL. You can try viewing this project in the legacy player <a id=legacy-link target=_blank href=https://sulfurous.aau.at/legacy>here</a>.
-</div>
+<pre><code id="log"></code></pre>
 </div>
 
 <div class=title>
   <div class=progress-bar></div>
-  <input class=url value=https://scratch.mit.edu/projects/>
-  <a target=_blank class=project-link title="View project on Scratch"></a>
+  <input class=url id=project value=https://scratch.mit.edu/projects/>
+  <a target=_blank class=project-link title="在 Scratch 上觀看"></a>
 </div>
 
 <div class=area id=project-area>
 <section class=package>
-  <h1>Package this project</h1>
-  <p>Get a link to a web page that automatically runs your project.</p>
+  <h1>店內享用</h1>
+  <p>取得一個網頁，連結後可以自動執行該專案。</p>
   <p>
-    <a href=# target=_blank id=package-link>Package</a>
+    <a href=# target=_blank id=package-link>開啟網頁</a>
     <input type=checkbox id=package-turbo>
-    <label for=package-turbo>Turbo mode</label>
-	<br />
-    <input type=radio id=package-full-screen name=custom-resolution>
-    <label for=package-full-screen>Full screen</label>
-	<input type=checkbox id=package-full-screen-aspect-ratio>
-	<label for=package-full-screen-aspect-ratio>Custom full screen aspect:</label>
-	<input type=number id=package-aspect-ratio-x min=1, max=100 class=xyinput>
-	<label for=full-screen-aspect-ratio>:</label>
-	<input type=number id=package-aspect-ratio-y min=1, max=100 class=xyinput>
-    <br />
-	<input type=radio id=package-standard-resolution checked name=custom-resolution>
-    <label for=package-standard-resolution>480x360</label>
-    <input type=radio id=package-double-resolution name=custom-resolution>
-    <label for=package-double-resolution>960x720</label>
-    <input type=radio id=package-custom-resolution name=custom-resolution>
-    <label for=package-custom-resolution>Custom width:</label>
-    <input type=number id=package-custom-resolution-x-value min=1 max=16000 class=xyinput>
-	<label for=package-custom-resolution>x</label>
-	<input type=number id=package-custom-resolution-y-value min=1 max=16000 class=xyinput>
+    <label for=package-turbo>加速模式</label>
+    <input type=checkbox id=package-full-screen checked>
+    <label for=package-full-screen>全屏顯示</label>
   </p>
 </section>
-
 <section class=package>
-  <h1>Embed this project</h1>
-  <p>Include the sulfurous player in your web site.</p>
+  <h1>打包帶走</h1>
+  <p>將帶有播放器的專案嵌入到你想要的網站裡頭。</p>
   <p>
     <input readonly id=embed-code>
-    <input type=checkbox id=embed-auto-start checked>
-    <label for=embed-auto-start>Start automatically</label>
+    <input type=checkbox id=embed-auto-start>
+    <label for=embed-auto-start >自動開始</label>
     <input type=checkbox id=embed-light-content>
-    <label for=embed-light-content>Light controls</label>
+    <label for=embed-light-content>明亮風格</label>
     <input type=checkbox id=embed-hide-controls>
-    <label for=embed-hide-controls>Hide UI</label>
-    <input type=radio id=embed-standard-resolution checked name=e-custom-resolution>
-    <label for=embed-standard-resolution>480x360</label>
-    <input type=radio id=embed-double-resolution name=e-custom-resolution>
-    <label for=embed-double-resolution>960x720</label>
-    <input type=radio id=embed-custom-resolution name=e-custom-resolution>
-    <label for=embed-custom-resolution>Custom width:</label>
-    <input type=number id=embed-custom-resolution-x-value min=1 max=16000 class=xyinput>
-	<label for=package-custom-resolution>x</label>
-	<input type=number id=embed-custom-resolution-y-value min=1 max=16000 class=xyinput>
+    <label for=embed-hide-controls>隱藏操作面版</label>
   </p>
 </section>
-
 <section>
-  <h1>Report a problem</h1>
-  <p>Sulfurous is still in development. <a id=bug-link target=_blank href=https://github.com/mittagskogel/sulfurous/issues/new>Click here</a> to report a problem with this project. If you are the creator of this Project please publish your project on scratch that we can see the code and debug it. </p>
+
+  <h1>有問題嗎？</h1>
+  <p>phosphorus 還在發展中，如果發現了什麼錯誤，請<a id=bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>在這裡回報</a>。</p>
 </section>
 </div>
 <section>
-  <h1>Credits</h1>
-  <p>Sulfurous was created by <a href=https://github.com/mittagskogel>Mittagskogel</a> and further developed by <a href=https://github.com/FRALEXGAMING>FRALEX</a> as part of their work at the <a href="https:\\www.aau.at">Alpen-Adria-University Klagenfurt</a>. Sulfurous is based off Phosphorus, which was created by <a href=https://github.com/nathan>Nathan Dinsmore</a>. Its CPS-style compilation and overall design was inspired by <a href=https://github.com/RHY3756547>Rhys Simpson</a>'s <a href=https://code.google.com/p/sb2-js/>sb2.js</a>. It would have more bugs if not for <a href=https://github.com/trumank>Truman Kilen</a>. It uses the <a href=https://stuk.github.io/jszip/>JSZip</a> library, created by <a href=https://github.com/stuk>Stuart Knightley</a>, <a href=https://github.com/dduponchel>David Duponchel</a>, Franz Buchinger, and <a href=https://github.com/aadsm>António Afonso</a>, to read <code>.sb2</code> files and compressed projects, and the <a href=https://code.google.com/p/canvg/>canvg</a> library, created by <a href=https://code.google.com/u/gabelerner@gmail.com/>Gabe Lerner</a>, to render SVGs in <code>&lt;canvas&gt;</code> elements.
-  <h1>Code</h1>
-  <p>Sulfurous is released under the MIT license, the source code for Sulfurous is available <a href=https://github.com/mittagskogel/sulfurous>on GitHub</a>. See <a href=https://github.com/nathan/phosphorus>Phosphorus</a> for the original version.</p>
-
-  <h1>QR-Code with Link to your Project</h1>
-<br />
-<div id="qrcode"></div>
+  <h1>誌謝</h1>
+  <p>phosphorus 是由 <a href=https://github.com/nathan>Nathan</a> 創建， 其 CPS 風格的編輯和整體設計靈感來自於 <a href=https://github.com/RHY3756547>Rhys</a>'s <a href=https://code.google.com/p/sb2-js/>sb2.js</a>。感謝 <a href=https://github.com/trumank>Truman</a> 和 <a href=https://github.com/tjvr>Tim</a> 幫忙除錯。這個程式用到了 <a href=https://stuk.github.io/jszip/>JSZip</a> 庫（創建者有 <a href=https://github.com/stuk>Stuart Knightley</a>、<a href=https://github.com/dduponchel>David Duponchel</a>、Franz Buchinger、<a href=https://github.com/aadsm>António Afonso</a>）來讀取 <code>.sb2</code> 檔案以及壓縮的專案。還用到了 <a href=https://code.google.com/p/canvg/>canvg</a> 庫（創建者為 <a href=https://code.google.com/u/gabelerner@gmail.com/>Gabe Lerner</a>）來渲染 SVGs 到 <code>&lt;canvas&gt;</code> 元素裡頭。
+  <h1>程式碼</h1>
+  <p>phosphorus 的源碼就在 <a href=https://github.com/nathan/phosphorus> GitHub</a>。</p>
+  <h1>我是誰</h1>
+  <p>不重要</p>
 </section>
-<img class="featured-image" alt="Sulfurous screenshot" src="img/featured_image">
-
-<script src=js/fonts.js></script>
-<script src=https://cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.js></script>
-<script src=js/gl-matrix-min.js></script>
-<script src=js/phosphorus.js></script>
-<script src=js/player.js></script>
-<script src=js/shaders.js></script>
-<script src=fonts/fonts.js></script>
-<script src=js/socket.io.js></script>
-
+<script src=fonts.js></script>
+<script src=//cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.js></script>
+<script src=lib/rgbcolor.js></script>
+<script src=lib/StackBlur.js></script>
+<script src=lib/canvg.js></script>
+<script src=lib/shaders.js></script>
+<script src=lib/gl-matrix-min.js></script>
+<script src=phosphorus.js></script>
+<script src=player.js></script>
+<script src=lib/fonts.js></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2014-11-29/FileSaver.min.js"></script>
+<script src="https://cdn.rawgit.com/Stuk/jszip-utils/dfdd631c4249bc495d0c335727ee547702812aa5/dist/jszip-utils.min.js"></script>
 <script>
 
 (function() {
   'use strict';
-	
-  var qrcode = new QRCode("qrcode");
 
   var prefix = 'https://scratch.mit.edu/projects/';
 
@@ -159,31 +130,14 @@
   var projectLink = document.querySelector('.project-link');
   var bugLink = document.querySelector('#bug-link');
 
-  /**********   Package   **********/
   var packageLink = document.querySelector('#package-link');
   var packageTurbo = document.querySelector('#package-turbo');
-  
   var packageFullScreen = document.querySelector('#package-full-screen');
-  var packageFullScreenAspectRatio = document.querySelector('#package-full-screen-aspect-ratio');
-  var packageAspectRatioX = document.querySelector('#package-aspect-ratio-x');
-  var packageAspectRatioY = document.querySelector('#package-aspect-ratio-y');
-  
-  var packageStandardResolution = document.querySelector('#package-standard-resolution');
-  var packageDoubleResolution = document.querySelector('#package-double-resolution');
-  var packageCustomResolution = document.querySelector('#package-custom-resolution');
-  var packageCustomResolutionXValue = document.querySelector('#package-custom-resolution-x-value');
-  var packageCustomResolutionYValue = document.querySelector('#package-custom-resolution-y-value');
 
-  /**********    Embed    **********/
   var embedCode = document.querySelector('#embed-code');
   var embedAutoStart = document.querySelector('#embed-auto-start');
   var embedLightContent = document.querySelector('#embed-light-content');
   var embedHideControls = document.querySelector('#embed-hide-controls');
-  var embedStandardResolution = document.querySelector('#embed-standard-resolution');
-  var embedDoubleResolution = document.querySelector('#embed-double-resolution');
-  var embedCustomResolution = document.querySelector('#embed-custom-resolution');
-  var embedCustomResolutionXValue = document.querySelector('#embed-custom-resolution-x-value');
-  var embedCustomResolutionYValue = document.querySelector('#embed-custom-resolution-y-value');
 
   var timeout;
   urlInput.addEventListener('input', function() {
@@ -242,11 +196,11 @@
       id = '';
     }
 
-    document.title = 'sulfurous';
+    document.title = 'ishare';
     P.player.load(id, function(stage) {
       stage.triggerGreenFlag();
     }, function(title) {
-      document.title = title ? title + ' \xb7 sulfurous' : 'sulfurous';
+      document.title = title ? title + ' \xb7 ishare' : 'ishare';
       updateBugLink();
     });
 
@@ -257,81 +211,18 @@
   }
 
   function updateBugLink() {
-    bugLink.href = P.player.projectId ? 'https://github.com/mittagskogel/sulfurous/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://sulfurous.aau.at/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/mittagskogel/sulfurous/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
+    bugLink.href = P.player.projectId ? 'https://github.com/nathan/phosphorus/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://isharewiki.github.io/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/nathan/phosphorus/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
   }
 
   function updatePackageLink() {
-    if(packageFullScreen.checked){
-	  packageCustomResolutionXValue.value = null;
-	  packageCustomResolutionYValue.value = null;
-	  
-	  if(!packageFullScreenAspectRatio.checked){
-	    packageAspectRatioX.value = 4;
-	    packageAspectRatioY.value = 3;
-	  }	  
-	}
-	else{
-	  packageAspectRatioX.value = null;
-	  packageAspectRatioY.value = null;
-	}
-    if(packageStandardResolution.checked){
-	  packageCustomResolutionXValue.value = 480;
-	  packageCustomResolutionYValue.value = 360;
-	}
-    if(packageDoubleResolution.checked){
-	  packageCustomResolutionXValue.value = 960;
-	  packageCustomResolutionYValue.value = 720;
-	}
-	// remember to change link before uploading!
-	packageLink.href = P.player.projectId ? 'https://sulfurous.aau.at/html/app.html?id=' + P.player.projectId +
-	                                        '&turbo=' + packageTurbo.checked +
-											'&full-screen=' + packageFullScreen.checked +
-											'&aspect-x=' + packageAspectRatioX.value +
-											'&aspect-y=' + packageAspectRatioY.value +
-											'&resolution-x=' + packageCustomResolutionXValue.value +
-											'&resolution-y=' + packageCustomResolutionYValue.value :
-											'about:blank';
-    packageCustomResolutionXValue.disabled = !packageCustomResolution.checked;
-    packageCustomResolutionYValue.disabled = !packageCustomResolution.checked;  
-    
-	packageFullScreenAspectRatio.disabled = !packageFullScreen.checked;
-    packageAspectRatioX.disabled = !(packageFullScreenAspectRatio.checked && packageFullScreen.checked);
-    packageAspectRatioY.disabled = !(packageFullScreenAspectRatio.checked && packageFullScreen.checked);
-
-qrcode.makeCode(packageLink.href);
-
+    packageLink.href = P.player.projectId ? '/app.html?id=' + P.player.projectId + '&turbo=' + packageTurbo.checked + '&full-screen=' + packageFullScreen.checked : 'about:blank';
   }
-  
+
   packageTurbo.addEventListener('change', updatePackageLink);
   packageFullScreen.addEventListener('change', updatePackageLink);
-  packageFullScreenAspectRatio.addEventListener('change', updatePackageLink);
-  packageAspectRatioX.addEventListener('change', updatePackageLink);
-  packageAspectRatioY.addEventListener('change', updatePackageLink);
-  packageStandardResolution.addEventListener('change', updatePackageLink);
-  packageDoubleResolution.addEventListener('change', updatePackageLink);
-  packageCustomResolution.addEventListener('change', updatePackageLink);
-  packageCustomResolutionXValue.addEventListener('change', updatePackageLink);
-  packageCustomResolutionYValue.addEventListener('change', updatePackageLink);
 
   function updateEmbedCode(e) {
-    if(embedStandardResolution.checked){
-	  embedCustomResolutionXValue.value = 480;
-	  embedCustomResolutionYValue.value = 360;
-	}
-    if(embedDoubleResolution.checked){
-	  embedCustomResolutionXValue.value = 960;
-	  embedCustomResolutionYValue.value = 480;
-	}
-	// remember to change link before uploading!
-    embedCode.value = P.player.projectId ? '<script src=\'https://sulfurous.aau.at/js/embed.js?id=' + P.player.projectId +
-	                                       '&resolution-x=' + embedCustomResolutionXValue.value +
-										   '&resolution-y=' + embedCustomResolutionYValue.value +
-										   (embedHideControls.checked ? '&ui=false' :
-										   '&auto-start=' + embedAutoStart.checked +
-										   '&light-content=' + embedLightContent.checked) +
-										   '\'></' + 'script>' : '';    
-    embedCustomResolutionXValue.disabled = !embedCustomResolution.checked;
-	embedCustomResolutionYValue.disabled = !embedCustomResolution.checked;
+    embedCode.value = P.player.projectId ? '<script src=https://' + location.host + '/embed.js?id=' + P.player.projectId + (embedHideControls.checked ? '&ui=false' : '&auto-start=' + embedAutoStart.checked + '&light-content=' + embedLightContent.checked) + '></' + 'script>' : '';
     embedAutoStart.disabled =
     embedLightContent.disabled = embedHideControls.checked;
     if (embedHideControls.checked) embedAutoStart.checked = true;
@@ -349,11 +240,6 @@ qrcode.makeCode(packageLink.href);
   embedHideControls.addEventListener('change', updateEmbedCode);
   embedAutoStart.addEventListener('change', updateEmbedCode);
   embedLightContent.addEventListener('change', updateEmbedCode);
-  embedStandardResolution.addEventListener('change', updateEmbedCode);
-  embedDoubleResolution.addEventListener('change', updateEmbedCode);
-  embedCustomResolution.addEventListener('change', updateEmbedCode);
-  embedCustomResolutionXValue.addEventListener('change', updateEmbedCode);
-  embedCustomResolutionYValue.addEventListener('change', updateEmbedCode);
 
   load(initialId);
 
@@ -380,8 +266,6 @@ qrcode.makeCode(packageLink.href);
     e.preventDefault();
 
     var f = e.dataTransfer.files[0];
-	
-	
 
     if (f) {
       location.hash = '#zip';
@@ -401,5 +285,194 @@ qrcode.makeCode(packageLink.href);
   });
 
 }());
+  function view1onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId);}
+  function view2onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId +"/#editor");}
+  function view3onclick(){window.open("https://beta.scratch.mit.edu/#"+P.player.projectId);}
+  function screenshotonclick(){window.open("https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png");}
 
+
+</script>
+<script>
+$(document).ready(function(){
+	$("#project").bind("keydown keyup keypress", function(){
+		$(this).css("color", "#000");
+		var projectId = $("#project").val();
+		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
+		projectId = parseInt(projectId);
+		if(isNaN(projectId)){
+			$("#project").css("color", "red");
+		}
+	}).on("paste", function(){
+		$(this).val("");
+	});
+	$("#go").click(function(){
+		$("#progress").removeClass("error success");
+		var projectId = $("#project").val();
+		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
+		projectId = parseInt(projectId);
+		if(isNaN(projectId)){
+			$("#project").css("color", "red");
+			return;
+		}
+		//$("#go, #project").attr("disabled","disabled");
+		startDownload(projectId);
+	});
+});
+
+var maxWidth = 0;
+var jszip = null;
+var project = null;
+var id = null;
+var soundId = 0;
+var costumeId = 0;
+var soundsToDownload = [];
+var costumesToDownload = [];
+var totalAssets = 0;
+var completeAssets = 0;
+
+function startDownload(projectId){
+	$("#log").text("");
+	$("#progress").text("");
+	logMessage("正在下載專案 "+projectId);
+	soundId = 0;
+	costumeId = 0;
+	totalAssets = 0;
+	completeAssets = 0;
+	soundsToDownload = [];
+  costumesToDownload = [];
+	id = projectId;
+	setProgress(0);
+	jszip = new JSZip();
+	jszip.comment = "Created with MegaApuTurkUltra's Project Downloader";
+	$.get("https://cdn.projects.scratch.mit.edu/internalapi/project/"+projectId+"/get/", function(data){
+		// FIX 2018-07-16
+		if (typeof data == "string") {
+			data = JSON.parse(data);
+		}
+		setProgress(10);
+		logMessage("已加載 JSON");
+		project = data;
+		processSoundsAndCostumes(project);
+		if(project.hasOwnProperty("children")){
+			for(child in project.children){
+				processSoundsAndCostumes(project.children[child]);
+			}
+		}
+		logMessage("找到 "+totalAssets+" 個資源");
+		jszip.file("project.json", JSON.stringify(project));
+		downloadCostume();
+	}).fail(perror);
+}
+
+function downloadCostume(){
+	if(costumesToDownload.length > 0){
+		var current = costumesToDownload.pop();
+		logMessage("正在讀取資源 "+current.costumeName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.baseLayerMD5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.baseLayerMD5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.baseLayerID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadCostume();
+		});
+	} else {
+		downloadSound();
+	}
+}
+
+function downloadSound(){
+	if(soundsToDownload.length > 0){
+		var current = soundsToDownload.pop();
+		logMessage("正在讀取資源 "+current.soundName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.md5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.md5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.soundID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadSound();
+		});
+	} else {
+		logMessage("正在讀取專案標題...");
+		$.get("https://scratch.mit.edu/api/v1/project/"+id+"/?format=json", function(data){
+			logMessage("正在建立壓縮檔...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("正在儲存...");
+			try {
+				saveAs(content, P.player.projectTitle +".sb2");
+			} catch(e){
+				saveAs(content, "project.sb2");
+			}
+			logMessage("完成");
+			psuccess();
+		}).fail(function(){
+			logMessage("無法讀取專案標題...");
+			logMessage("正在建立壓縮檔...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("正在儲存...");
+      saveAs(content, P.player.projectTitle +".sb2");
+			logMessage("完成");
+			psuccess();
+		});
+	}
+}
+
+function processSoundsAndCostumes(node){
+	if(node.hasOwnProperty("costumes")){
+		for(var i=0;i<node.costumes.length;i++){
+			var current = node.costumes[i];
+			current.baseLayerID = costumeId;
+			costumeId++;
+			totalAssets++;
+			costumesToDownload.push(current);
+		}
+	}
+	if(node.hasOwnProperty("sounds")){
+		for(var i=0;i<node.sounds.length;i++){
+			var current = node.sounds[i];
+			current.soundID = soundId;
+			soundId++;
+			totalAssets++;
+			soundsToDownload.push(current);
+		}
+	}
+}
+
+function perror(){
+	logMessage("下載失敗");
+	setProgress(100);
+	$("#progress").addClass("error");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function psuccess(){
+	setProgress(100);
+	$("#progress").addClass("success");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function setProgress(perc){
+	maxWidth = $("#project").width() + $("#go").width();
+	$("#progress").css("left", $("#project").position().left+"px");
+	$("#progress").width(perc * maxWidth * 1.055 / 100);
+}
+
+function reset(){
+	$("#go, #project").removeAttr("disabled");
+}
+
+function logMessage(msg){
+	$("#log").text(msg+"\n"+$("#log").text());
+}
 </script>
