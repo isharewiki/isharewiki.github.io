@@ -1293,11 +1293,7 @@ var P = (function() {
 			}else if(variables[i].name.substring(variables[i].name.indexOf(".")+1,variables[i].name.indexOf(".")+3) == 'c.' ||variables[i].name.charAt(0) == '☁' ){
 				
 						console.log(variables[i].name);
-						if(typeof sulfCloudVars[variables[i].name] == 'undefined'){
-							this.vars[variables[i].name] = variables[i].value;
-						}else{
-							this.vars[variables[i].name] = sulfCloudVars[variables[i].name];
-						}
+
 						
 				
 			
