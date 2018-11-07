@@ -4181,86 +4181,146 @@ var P = (function() {
       this.labelWidth = context.measureText(this.label).width;
     }
 
-    this.el = document.createElement('div');
-    this.el.dataset.watcher = this.stage.allWatchers.indexOf(this);
-    this.el.style.whiteSpace = 'pre';
-    this.el.style.position = 'absolute';
-    this.el.style.left = this.el.style.top = '0';
-    this.el.style.transform = 'translate('+(this.x|0)/10+'em,'+(this.y|0)/10+'em)';
-    this.el.style.cursor = 'default';
-    this.el.style.pointerEvents = 'auto';
+    context.save();
+    context.translate(this.x, this.y);
+	
+	//drawing variables in here?
+    
+    if (this.mode === 1 || this.mode === 3) {
+      
+      context.font = 'bold 11px sans-serif';
 
-    if (this.mode === 2) {
-      this.el.appendChild(this.readout = document.createElement('div'));
-      this.readout.style.minWidth = (38/15)+'em';
-      this.readout.style.font = 'bold 1.5em/'+(19/15)+' sans-serif';
-      this.readout.style.height = (19/15)+'em';
-      this.readout.style.borderRadius = (4/15)+'em';
-      this.readout.style.margin = (3/15)+'em 0 0 0';
-      this.readout.style.padding = '0 '+(3/10)+'em';
-    } else {
-      this.el.appendChild(this.labelEl = document.createElement('div'), this.el.firstChild);
-      this.el.appendChild(this.readout = document.createElement('div'));
+      var dw = Math.max(41, 5 + context.measureText(value).width + 5);
+      var r = 5;
+      var w = this.width = 5 + this.labelWidth + 5 + dw + 5;
+      var h = this.mode === 1 ? 21 : 32;
 
-      this.el.style.border = '.1em solid rgb(148,145,145)';
-      this.el.style.borderRadius = '.4em';
-      this.el.style.background = 'rgb(193,196,199)';
-      this.el.style.padding = '.2em .6em .3em .5em';
+      context.strokeStyle = 'rgb(148, 145, 145)';
+      context.fillStyle = 'rgb(193, 196, 199)';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(r + 1, r + 1, r, Math.PI, Math.PI * 3/2, false);
+      context.arc(w - r - 1, r + 1, r, Math.PI * 3/2, 0, false);
+      context.arc(w - r - 1, h - r - 1, r, 0, Math.PI/2, false);
+      context.arc(r + 1, h - r - 1, r, Math.PI/2, Math.PI, false);
+      context.closePath();
+      context.stroke();
+      context.fill();
 
-      this.labelEl.textContent = this.label;
-      // this.labelEl.style.marginTop = (1/11)+'em';
-      this.labelEl.style.font = 'bold 1.1em/1 sans-serif';
-      this.labelEl.style.display = 'inline-block';
+      context.fillStyle = '#000';
+      context.fillText(this.label, 5, 14);
 
-      this.labelEl.style.verticalAlign =
-      this.readout.style.verticalAlign = 'middle';
+      var dh = 15;
+      var dx = 5 + this.labelWidth + 5;
+      var dy = 3;
+      var dr = 4;
 
-      this.readout.style.minWidth = (37/10)+'em';
-      this.readout.style.padding = '0 '+(1/10)+'em';
-      this.readout.style.font = 'bold 1.0em/'+(13/10)+' sans-serif';
-      this.readout.style.height = (13/10)+'em';
-      this.readout.style.borderRadius = (4/10)+'em';
-      this.readout.style.marginLeft = (6/10)+'em';
+      context.save();
+      context.translate(dx, dy);
+
+      context.strokeStyle = '#fff';
+      context.fillStyle = this.color;
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(dr + 1, dr + 1, dr, Math.PI, Math.PI * 3/2, false);
+      context.arc(dw - dr - 1, dr + 1, dr, Math.PI * 3/2, 0, false);
+      context.arc(dw - dr - 1, dh - dr - 1, dr, 0, Math.PI/2, false);
+      context.arc(dr + 1, dh - dr - 1, dr, Math.PI/2, Math.PI, false);
+      context.closePath();
+      context.stroke();
+      context.fill();
+
+      context.fillStyle = '#fff';
+      context.textAlign = 'center';
+      context.fillText(value, dw / 2, dh - 4);
+
+      context.restore();
+
+      if (this.mode === 3) {
+        var sh = 5;
+        var sw = w - 5 - 5;
+        var sr = 1.5;
+        var br = 4.5;
+
+        context.save();
+        context.translate(5, 22);
+
+        context.strokeStyle = 'rgb(148, 145, 145)';
+        context.fillStyle = 'rgb(213, 216, 219)';
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(sr + 1, sr + 1, sr, Math.PI, Math.PI * 3/2, false);
+        context.arc(sw - sr - 1, sr + 1, sr, Math.PI * 3/2, 0, false);
+        context.arc(sw - sr - 1, sh - sr - 1, sr, 0, Math.PI/2, false);
+        context.arc(sr + 1, sh - sr - 1, sr, Math.PI/2, Math.PI, false);
+        context.closePath();
+        context.stroke();
+        context.fill();
+
+        var x = (sw - sh) * Math.max(0, Math.min(1, ((+value || 0) - this.sliderMin) / (this.sliderMax - this.sliderMin)));
+        context.strokeStyle = 'rgb(108, 105, 105)';
+        context.fillStyle = 'rgb(233, 236, 239)';
+        context.beginPath();
+        context.arc(x + sh / 2, sh / 2, br - 1, 0, Math.PI * 2, false);
+        context.stroke();
+        context.fill();
+
+        context.restore();
+      }
+    } else if (this.mode === 2) {
+      context.font = 'bold 15px sans-serif';
+
+      dh = 21;
+      dw = Math.max(41, 5 + context.measureText(value).width + 5);
+      dr = 4;
+
+      context.strokeStyle = '#fff';
+      context.fillStyle = this.color;
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(dr + 1, dr + 1, dr, Math.PI, Math.PI * 3/2, false);
+      context.arc(dw - dr - 1, dr + 1, dr, Math.PI * 3/2, 0, false);
+      context.arc(dw - dr - 1, dh - dr - 1, dr, 0, Math.PI/2, false);
+      context.arc(dr + 1, dh - dr - 1, dr, Math.PI/2, Math.PI, false);
+      context.closePath();
+      context.stroke();
+      context.fill();
+
+      context.fillStyle = '#fff';
+      context.textAlign = 'center';
+      context.fillText(value, dw / 2, dh - 5);
     }
-    this.readout.style.color = '#fff';
-    var f = 1 / (this.mode === 2 ? 15 : 10);
-    this.readout.style.border = f+'em solid #fff';
-    this.readout.style.boxShadow = 'inset '+f+'em '+f+'em '+f+'em rgba(0,0,0,.5), inset -'+f+'em -'+f+'em '+f+'em rgba(255,255,255,.5)';
-    this.readout.style.textAlign = 'center';
-    this.readout.style.background = this.color;
-    this.readout.style.display = 'inline-block';
+    
 
-    if (this.mode === 3) {
-      this.el.appendChild(this.slider = document.createElement('div'));
-      this.slider.appendChild(this.buttonWrap = document.createElement('div'));
-      this.buttonWrap.appendChild(this.button = document.createElement('div'));
+    context.restore();
 
-      this.slider.style.height =
-      this.slider.style.borderRadius = '.5em';
-      this.slider.style.background = 'rgb(192,192,192)';
-      this.slider.style.margin = '.4em 0 .1em';
-      this.slider.style.boxShadow = 'inset .125em .125em .125em rgba(0,0,0,.5), inset -.125em -.125em .125em rgba(255,255,255,.5)';
-      this.slider.style.position = 'relative';
-      this.slider.dataset.slider = '';
+    var imgInfo = glMakeTexture(destContext, canvas);
+    
 
-      this.slider.style.paddingRight =
-      this.button.style.width =
-      this.button.style.height =
-      this.button.style.borderRadius = '1.1em';
-      this.button.style.position = 'absolute';
-      this.button.style.left = '0';
-      this.button.style.top = '-.3em';
-      this.button.style.background = '#fff';
-      this.button.style.boxShadow = 'inset .3em .3em .2em -.2em rgba(255,255,255,.9), inset -.3em -.3em .2em -.2em rgba(0,0,0,.9), inset 0 0 0 .1em #777';
-      this.button.dataset.button = '';
-    }
-
-    this.stage.ui.appendChild(this.el);
+    
+    glDrawImage(
+      destContext,
+      destContext.imgShaderInfo,
+      destContext.imgBuffers,
+      imgInfo,
+      0,
+      0,
+      480,
+      360,
+      0,
+      0,
+      0);
+      
+    destContext.deleteTexture(imgInfo.texture);
+    imgInfo = null;
+    
+    canvas.remove();
   };
 
   var AudioContext = window.AudioContext || window.webkitAudioContext;
   var audioContext = AudioContext && new AudioContext;
-
+  audioContext.mInit = false;
+  
   return {
     hasTouchEvents: hasTouchEvents,
     getKeyCode: getKeyCode,
@@ -4476,6 +4536,9 @@ P.compile = (function() {
     };
 
     var varRef = function(name) {
+		
+		
+		
       if (typeof name !== 'string') {
         return 'getVars(' + val(name) + ')[' + val(name) + ']';
       }
@@ -4512,23 +4575,50 @@ P.compile = (function() {
         t === '%b' ? 'bool' : '';
 
       if (kind === 'num' && usenum) {
-        used[i] = true;
+        //used[i] = true;
         return 'C.numargs[' + i + ']';
       }
       if (kind === 'bool' && usebool) {
-        used[i] = true;
+        //used[i] = true;
         return 'C.boolargs[' + i + ']';
       }
 
-      var v = 'C.args[' + i + ']';
-      if (usenum) return '(+' + v + ' || 0)';
-      if (usebool) return 'bool(' + v + ')';
-      return v;
+      if (usenum) return '(+C.args[' + i + '] || 0)';
+      if (usebool) return 'bool(C.args[' + i + '])';
+      return 'C.args[' + i + ']';
     };
 
-    var val2 = function(e) {
+    var val = function(e, usenum, usebool) {
+		
+	
+		
       var v;
-      if (e[0] === 'costumeName') {
+      if (typeof e === 'number' || typeof e === 'boolean') {
+
+        return '' + e;
+
+      } else if (typeof e === 'string') {
+		
+		
+		
+		
+        return '"' + e
+          .replace(/\\/g, '\\\\')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/"/g, '\\"')
+          .replace(/\{/g, '\\x7b')
+          .replace(/\}/g, '\\x7d') + '"';
+
+      } else if (e[0] === 'getParam') { /* Data */
+
+        return param(e[1], usenum, usebool);
+
+      } else if ((v = numval(e)) != null || (v = boolval(e)) != null) {
+
+        return v;
+
+      } else if (e[0] === 'costumeName') {
 
         return 'S.getCostumeName()';
 
@@ -4538,7 +4628,21 @@ P.compile = (function() {
 
       } else if (e[0] === 'readVariable') {
 
-        return varRef(e[1]);
+        switch(e[1]){
+			
+          case 'sulf.time':
+            return 'Date.now()';
+          case 'sulf.version':
+            return '0.93';
+          case 'sulf.resolutionX':
+            return 'self.canvas.width';
+          case 'sulf.resolutionY':
+            return 'self.canvas.height';
+          case 'sulf.hasTouchEvents':
+            return 'P.hasTouchEvents';		
+          default:
+            return varRef(e[1]);
+        }
 
       } else if (e[0] === 'contentsOfList:') {
 
@@ -4557,7 +4661,9 @@ P.compile = (function() {
         return '(("" + ' + val(e[2]) + ')[(' + num(e[1]) + ' | 0) - 1] || "")';
 
       } else if (e[0] === 'answer') { /* Sensing */
-
+			
+			
+			
         return 'self.answer';
 
       } else if (e[0] === 'getAttribute:of:') {
@@ -4570,46 +4676,11 @@ P.compile = (function() {
 
       } else if (e[0] === 'getUserName') {
 
-        return '""';
+        return 'sulfUsername';
 
       } else {
 
         warn('Undefined val: ' + e[0]);
-
-      }
-    };
-
-    var val = function(e, usenum, usebool) {
-      var v;
-
-      if (typeof e === 'number' || typeof e === 'boolean') {
-
-        return '' + e;
-
-      } else if (typeof e === 'string') {
-
-        return '"' + e
-          .replace(/\\/g, '\\\\')
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/"/g, '\\"')
-          .replace(/\{/g, '\\x7b')
-          .replace(/\}/g, '\\x7d') + '"';
-
-      } else if (e[0] === 'getParam') {
-
-        return param(e[1], usenum, usebool);
-
-      } else if ((v = numval(e)) != null || (v = boolval(e)) != null) {
-
-        return v;
-
-      } else {
-
-        v = val2(e);
-        if (usenum) return '(+' + v + ' || 0)';
-        if (usebool) return 'bool(' + v + ')';
-        return v;
 
       }
     };
@@ -4637,7 +4708,7 @@ P.compile = (function() {
         return '(self.currentCostumeIndex + 1)';
 
       } else if (e[0] === 'scale') {
-
+        
         return '(S.scale * 100)';
 
       } else if (e[0] === 'volume') { /* Sound */
