@@ -6285,10 +6285,7 @@ P.runtime = (function() {
     P.Stage.prototype.step = function() {
 
 	 self = this;
-		for(var i = 0;i < Object.keys(sulfCloudVars).length;i++){
-			this.vars[Object.keys(sulfCloudVars)[i]] = sulfCloudVars[Object.keys(sulfCloudVars)[i]];
-		}
-		
+
 		
       VISUAL = false;
       var start = Date.now();
