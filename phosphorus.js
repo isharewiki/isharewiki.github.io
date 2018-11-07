@@ -1,4 +1,31 @@
+
+/*
+ Sulfurous - an html5 player for Scratch projects
+ 
+ Version: 0.95 July 23, 2018
+
+ Sulfurous was created by Mittagskogel and further developed by FRALEX
+ as part of their work at the Alpen-Adria-University Klagenfurt.
+ Sulfurous is based off Phosphorus, which was created by Nathan Dinsmore.
+ Its CPS-style compilation and overall design was inspired by Rhys Simpson's
+ sb2.js. It would have more bugs if not for Truman Kilen. It uses the JSZip
+ library, created by Stuart Knightley, David Duponchel, Franz Buchinger, and
+ António Afonso, to read .sb2 files and compressed projects, and the canvg 
+ library, created by Gabe Lerner, to render SVGs in <canvas> elements.
+ 
+ Sulfurous is released under the MIT license, the full source is available
+ at https://github.com/mittagskogel/sulfurous
+ 
+ We got help from: https://github.com/htmlgames
+*/
+var ASCII = false;
+var projectID;
+var firstRunSulfVars = true;
 var P = (function() {
+	
+	
+	
+	
   'use strict';
 
   var SCALE = window.devicePixelRatio || 1;
@@ -64,13 +91,218 @@ var P = (function() {
     };
   };
 
+  
+  //  WebGL generic drawing functions to be used by Stage and Sprite.
+
+  var initShaderProgram = function(gl, vsSource, fsSource){
+    const vertexShader   = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+    
+    const shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+    
+    if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)){
+      console.warn('Could not initialize shaders. ' + gl.getProgramInfoLog(shaderProgram));
+      return null;
+    }
+    
+    return shaderProgram;
+  }
+  
+  var loadShader = function(gl, type, source){
+    const shader = gl.createShader(type);
+    
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    
+    if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+      console.warn('Could not compile shader. ' + gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    
+    return shader;
+  }
+
+  var initImgBuffers = function(gl){
+    var position = gl.createBuffer();
+    var texcoord = gl.createBuffer();
+
+    var positionLocation = [
+      -1,  1,
+       1,  1,
+      -1, -1,
+      -1, -1,
+       1, -1,
+       1,  1,
+    ];
+    
+    var texcoordLocation = [
+       0,  1,
+       1,  1,
+       0,  0,
+       0,  0,
+       1,  0,
+       1,  1,
+    ];
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, position);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  new Float32Array(positionLocation),
+                  gl.STATIC_DRAW);
+                      
+                  
+    gl.bindBuffer(gl.ARRAY_BUFFER, texcoord);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  new Float32Array(texcoordLocation),
+                  gl.STATIC_DRAW);
+                  
+    return {
+      position: position,
+      texcoord: texcoord,
+    }
+  }    
+  
+  var glMakeTexture = function(gl, canvas){
+    //console.log('glMakeTexture');
+    
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    
+    
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    
+    var textureInfo = {
+      width: canvas.width,
+      height: canvas.height,
+      texture: tex,
+    };
+    
+    return textureInfo;
+  }
+  
+  var glDrawImage = function(gl, programInfo, buffers, imgInfo, x, y, width, height, rot, originX, originY, effect, tColor){
+ 
+    var cWidth = gl.canvas.width;
+    var cHeight = gl.canvas.height;
+   
+    if(cWidth >= cHeight * 0.75)
+      var zoom = Math.max(cWidth, cHeight * 0.75);
+    else
+      var zoom = Math.max(cHeight * 1.25, cHeight);
+    
+    gl.viewport(0, cHeight - zoom * 0.875, zoom, zoom);
+    
+    gl.blendFunc(programInfo.blendSource, programInfo.blendDest);
+    gl.enable(gl.BLEND);
+    gl.disable(gl.DEPTH_TEST);   
+    
+    gl.bindTexture(gl.TEXTURE_2D, imgInfo.texture);
+    
+    gl.useProgram(programInfo.program);
+    
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);   
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.position,
+      2,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+     
+    gl.enableVertexAttribArray(programInfo.attribLocations.position);
+    
+    
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texcoord); 
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.texcoord,
+      2,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+      
+    gl.enableVertexAttribArray(programInfo.attribLocations.texcoord);   
+
+    
+    var q = quat.create();
+    quat.fromEuler(q, 0, 0, rot);
+    
+    var v = vec3.fromValues(x / 240, y / 240, 0);
+    
+    var s = vec3.fromValues(1, 1, 1);
+    
+    var o = vec3.fromValues(originX / 240, originY / 240, 0);
+    
+    var matrix = mat4.create();
+    mat4.fromRotationTranslationScaleOrigin(matrix, q, v, s, o);
+    
+    mat4.scale(matrix, matrix, vec3.fromValues(width / 480, -height / 480, 0));
+    
+    gl.uniformMatrix4fv(programInfo.uniformLocations.matrix, false, matrix);
+    
+    if(tColor) gl.uniform4fv(programInfo.uniformLocations.tColor, tColor);
+    gl.uniform1i(programInfo.uniformLocations.texture, 0);
+    gl.uniform2f(programInfo.uniformLocations.texSize, imgInfo.width, imgInfo.height);
+    
+    //Effects:
+    //effect[0] = color
+    //effect[1] = fisheye
+    //effect[2] = whirl
+    //effect[3] = pixelate
+    //effect[4] = mosaic
+    //effect[5] = brightness
+    //effect[6] = ghost
+
+    if(!effect) effect = [0, 0, 0, 1, 1, 0, 1];
+      
+	
+	 ;
+	  if(effect[5] > 0){
+		 effect[5] = effect[5] /90 * 30 ;
+		 effect[0] = effect[0] + effect[5];
+	  }
+	  
+	
+    var colorMatrix = mat4.create();
+    mat4.fromRotation(colorMatrix, effect[0], vec3.fromValues(1.0, 1.0, 1.0));  
+      
+    //ghost, brightness
+    gl.uniform2f(programInfo.uniformLocations.colorEffect, effect[5], effect[6]);
+    //color
+    gl.uniformMatrix4fv(programInfo.uniformLocations.colorMatrix, false, colorMatrix);
+    //texture
+    gl.uniform4f(programInfo.uniformLocations.texEffect, effect[1], effect[2], effect[3], effect[4]);
+    
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    
+    /*
+    var err
+    if(err = gl.getError()){
+      console.log('WebGL Error: ' + err);
+    }
+    */
+  }  
+  
   var Request = function() {
     this.loaded = 0;
   };
   addEvents(Request, 'load', 'progress', 'error');
 
   Request.prototype.progress = function(loaded, total, lengthComputable) {
-    this.loaded = loaded;
+
+	
+
+  this.loaded = loaded;
     this.total = total;
     this.lengthComputable = lengthComputable;
     this.dispatchProgress({
@@ -116,6 +348,9 @@ var P = (function() {
   };
 
   CompositeRequest.prototype.update = function() {
+	  
+	  
+	  
     if (this.isError) return;
     var requests = this.requests;
     var i = requests.length;
@@ -172,10 +407,13 @@ var P = (function() {
 
   IO.PROJECT_URL = 'https://projects.scratch.mit.edu/internalapi/project/';
   IO.ASSET_URL = 'https://cdn.assets.scratch.mit.edu/internalapi/asset/';
-  IO.SOUNDBANK_URL = 'https://cdn.rawgit.com/LLK/scratch-flash/v429/src/soundbank/';
+  //IO.SOUNDBANK_URL = 'https://cdn.rawgit.com/LLK/scratch-flash/v429/src/soundbank/';
 
-  IO.FONTS = {
+  IO.SOUNDBANK_URL = window.location + 'soundbank/';
+
+   IO.FONTS = {
     '': 'Helvetica',
+    Scratch: 'Scratch',	  
     Donegal: 'Donegal One',
     Gloria: 'Gloria Hallelujah',
     Marker: 'Permanent Marker',
@@ -183,13 +421,14 @@ var P = (function() {
   };
 
   IO.LINE_HEIGHTS = {
-    Helvetica: 1.13,
+    'Helvetica': 1.13,
+    'Scratch': 1.0,
     'Donegal One': 1.25,
     'Gloria Hallelujah': 1.97,
     'Permanent Marker': 1.43,
     'Mystery Quest': 1.37
   };
-
+  
   IO.ADPCM_STEPS = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767];
   IO.ADPCM_INDEX = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
 
@@ -211,51 +450,71 @@ var P = (function() {
 
 
   IO.load = function(url, callback, self, type) {
-    var request = new Request;
+  
+   var request = new Request;
     var xhr = new XMLHttpRequest;
     xhr.open('GET', url, true);
+	
+	 
     xhr.onprogress = function(e) {
+		
+		
       request.progress(e.loaded, e.total, e.lengthComputable);
     };
     xhr.onload = function() {
       if (xhr.status === 200) {
         request.load(xhr.response);
       } else {
+		  
         request.error(new Error('HTTP ' + xhr.status + ': ' + xhr.statusText));
       }
     };
     xhr.onerror = function() {
-      request.error(new Error('XHR Error'));
+     request.error(new Error('XHR Error'));
     };
     xhr.responseType = type || '';
     setTimeout(xhr.send.bind(xhr));
 
     if (callback) request.onLoad(callback.bind(self));
+	
     return request;
+	
   };
 
   IO.loadImage = function(url, callback, self) {
     var request = new Request;
     var image = new Image;
+	  var bForcedBlank = false;
     image.crossOrigin = 'anonymous';
     image.src = url;
     image.onload = function() {
       request.load(image);
     };
     image.onerror = function() {
-      request.error(new Error('Failed to load image: ' + url));
+     // request.error(new Error('Failed to load image: ' + url));
+	  console.log('Failed to load image (forcing blank): ' + url);
+      bForcedBlank = true;
+      image.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAABBJREFUeNpi+P//PwNAgAEACPwC/tuiTRYAAAAASUVORK5CYII=";
+  
     };
     if (callback) request.onLoad(callback.bind(self));
-    return request;
+     return (bForcedBlank) ? request : request;
   };
-
+		
   IO.loadScratchr2Project = function(id, callback, self) {
     var request = new CompositeRequest;
     IO.init(request);
-
+	
+	projectID = id;
+	
     request.defer = true;
     var url = IO.PROJECT_URL + id + '/get/';
-    request.add(IO.load(url).onLoad(function(contents) {
+    
+	console.log(url);
+	
+	request.add(IO.load(url).onLoad(function(contents) {
+		
+		
       try {
         var json = IO.parseJSONish(contents);
       } catch (e) {
@@ -263,6 +522,7 @@ var P = (function() {
           var request2 = new Request;
           request.add(request2);
           request.add(IO.loadSB2Project(ab, function(stage) {
+			
             request.getResult = function() {
               return stage;
             };
@@ -292,8 +552,8 @@ var P = (function() {
   };
 
   IO.loadScratchr2ProjectTitle = function(id, callback, self) {
-    var request = new CompositeRequest;
-
+    var request = new CompositeRequest;    
+    
     request.defer = true;
     request.add(P.IO.load('https://scratch.mit.edu/projects/' + id + '/').onLoad(function(data) {
       var m = /<title>\s*(.+?)(\s+on\s+Scratch)?\s*<\/title>/.exec(data);
@@ -302,6 +562,7 @@ var P = (function() {
         var d = document.createElement('div');
         d.innerHTML = m[1];
         request.load(d.innerText);
+	
       } else {
         request.error(new Error('No title'));
       }
@@ -337,7 +598,7 @@ var P = (function() {
     IO.init(request);
 
     try {
-      IO.zip = Object.prototype.toString.call(ab) === '[object ArrayBuffer]' ? new JSZip(ab) : ab;
+      IO.zip = new JSZip(ab);
       var json = IO.parseJSONish(IO.zip.file('project.json').asText());
 
       IO.loadProject(json);
@@ -402,10 +663,46 @@ var P = (function() {
       }
     }
   };
-
+  
+  IO.arrayBufferToBase64 = function(buffer){
+    var bytes = new Uint8Array(buffer);
+    var len = buffer.byteLength;
+    var base64 = '';
+    for(var i = 0; i < len; i++){
+      base64 += String.fromCharCode(bytes[i]);
+    }
+    return btoa(base64);
+  }
+  
+  IO.base64ToArrayBuffer = function(base64){
+    var binaryString = atob(base64);
+    var len = binaryString.length;
+    var bytes = new Uint8Array(len);
+    for(var i = 0; i < len; i++){
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+  
+  //IO.base64output = '';
+  
   IO.loadWavBuffer = function(name) {
     var request = new Request;
+	
+
+		
     IO.load(IO.SOUNDBANK_URL + wavFiles[name], function(ab) {
+      
+      //Code for exporting soundbank to text file.
+      /*
+      IO.base64output = IO.base64output + 'A.' + name + ' = \'' + IO.arrayBufferToBase64(ab) + '\'\n';
+      var el = document.createElement("a");
+      el.setAttribute('href', 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(IO.base64output));
+      el.appendChild(document.createTextNode('wav files'));
+      document.body.appendChild(el);
+      console.log(name);
+      */     
+      
       IO.decodeAudio(ab, function(buffer) {
         IO.wavBuffers[name] = buffer;
         request.load();
@@ -416,9 +713,10 @@ var P = (function() {
     return request;
   };
 
+  
   IO.decodeAudio = function(ab, cb) {
     if (audioContext) {
-      IO.decodeADPCMAudio(ab, function(err, buffer) {
+       IO.decodeADPCMAudio(ab, function(err, buffer) {
         if (buffer) return setTimeout(function() {cb(buffer)});
         var p = audioContext.decodeAudioData(ab, function(buffer) {
           cb(buffer);
@@ -509,15 +807,29 @@ var P = (function() {
     }
     cb(new Error('Unrecognized WAV format ' + format));
   };
-
+  
   IO.loadBase = function(data) {
     data.scripts = data.scripts || [];
     data.costumes = IO.loadArray(data.costumes, IO.loadCostume);
     data.sounds = IO.loadArray(data.sounds, IO.loadSound);
     data.variables = data.variables || [];
     data.lists = data.lists || [];
+	
+	console.log(data.lists);		
+		 //pf temp (dirty) hack for ASCII hack lists...		
+	    if (data && data.lists && data.lists.length) {		
+	        for (var ha = data.lists.length; ha--;)		
+		{		
+		    if (data.lists[ha].listName == "ASCII" && data.lists[ha].contents.length != 133) { // 2nd part ugh (skips GB ROM) !!!		
+		        ASCII = true;		
+			console.log("ASCII hack detected.");		
+		    }		
+		}		
+	    } 
+	
   };
 
+	//process an array of several inputs (such as costumes, sounds, ...)
   IO.loadArray = function(data, process) {
     if (!data) return [];
     for (var i = 0; i < data.length; i++) {
