@@ -407,7 +407,7 @@ var P = (function() {
 
   IO.PROJECT_URL = 'https://projects.scratch.mit.edu/internalapi/project/';
   IO.ASSET_URL = 'https://cdn.assets.scratch.mit.edu/internalapi/asset/';
-  //IO.SOUNDBANK_URL = 'https://cdn.rawgit.com/LLK/scratch-flash/v429/src/soundbank/';
+  
 
   IO.SOUNDBANK_URL = window.location + 'soundbank/';
 
@@ -979,8 +979,9 @@ var P = (function() {
         }
         
       }
-      // svg.style.cssText = '';
-      // console.log(element.textContent, 'data:image/svg+xml;base64,' + btoa(svg.outerHTML));
+      
+      
+      
     } else if ((element.hasAttribute('x') || element.hasAttribute('y')) && element.hasAttribute('transform')) {
       element.setAttribute('x', 0);
       element.setAttribute('y', 0);
@@ -1106,12 +1107,7 @@ var P = (function() {
           viewBox.height = svg.height.baseVal.value = Math.ceil(bb.y + bb.height + 1);	
           viewBox.x = 0;
           viewBox.y = 0;
-          //viewBox.width = 0;
-          //viewBox.height = 0;
         }
-        //IO.fixSVG(svg, svg);
-        //document.body.removeChild(svg);
-        //svg.style.visibility = svg.style.position = svg.style.left = svg.style.top = '';
 
         //IO.fixSVG(svg, svg);
         //while (div.firstChild) div.removeChild(div.lastChild);
@@ -1243,7 +1239,7 @@ var P = (function() {
     this.addLists(data.lists);
 	
 	
-	//cloudManager(data.variables);
+	cloudManager(data.variables);
 	
     this.addVariables(data.variables);
 
@@ -1293,7 +1289,11 @@ var P = (function() {
 			}else if(variables[i].name.substring(variables[i].name.indexOf(".")+1,variables[i].name.indexOf(".")+3) == 'c.' ||variables[i].name.charAt(0) == '☁' ){
 				
 						console.log(variables[i].name);
-
+						if(typeof sulfCloudVars[variables[i].name] == 'undefined'){
+							this.vars[variables[i].name] = variables[i].value;
+						}else{
+							this.vars[variables[i].name] = sulfCloudVars[variables[i].name];
+						}
 						
 				
 			
@@ -1345,7 +1345,6 @@ var P = (function() {
       }
     }
     watcher.visible = visible;
-    //watcher.layout();
   };
 
   Base.prototype.showNextCostume = function() {
@@ -1492,8 +1491,6 @@ var P = (function() {
     Stage.parent.call(this);
 
     this.children = [];
-    //this.allWatchers = [];
-    //this.dragging = Object.create(null);
     this.defaultWatcherX = 10;
     this.defaultWatcherY = 10;
 
@@ -1529,7 +1526,6 @@ var P = (function() {
     this.root.style.height = '360px';
     this.root.style.fontSize = '10px';
     this.root.style.background = '#fff';
-    //this.root.style.contain = 'strict';
     this.root.style.WebkitUserSelect =
     this.root.style.MozUserSelect =
     this.root.style.MSUserSelect =
@@ -1541,6 +1537,7 @@ var P = (function() {
     this.root.appendChild(this.backdropCanvas);
     this.backdropCanvas.width = SCALE * 480;
     this.backdropCanvas.height = SCALE * 360;
+    this.backdropCanvas.setAttribute('id', 'backdropCanvas');
     //this.backdropContext = this.backdropCanvas.getContext('2d');
     this.backdropContext = this.backdropCanvas.getContext('webgl') ||
                            this.backdropCanvas.getContext('experimental-webgl');
@@ -1975,7 +1972,7 @@ var P = (function() {
     this.promptButton.style.position = 'absolute';
     this.promptButton.style.right = '.4em';
     this.promptButton.style.bottom = '.4em';
-    this.promptButton.style.background = 'url(icons.svg) -16.5em -3.7em';
+    this.promptButton.style.background = 'url(/img/icons.svg) -16.5em -3.7em';
     this.promptButton.style.backgroundSize = '32.0em 9.6em';
 
     this.prompt.addEventListener('keydown', function(e) {
@@ -3868,7 +3865,7 @@ var P = (function() {
       this.bubblePointer.style.position = 'absolute';
       this.bubblePointer.style.height = ''+(21/14)+'em';
       this.bubblePointer.style.width = ''+(44/14)+'em';
-      this.bubblePointer.style.background = 'url(icons.svg) '+(-195/14)+'em '+(-4/14)+'em';
+      this.bubblePointer.style.background = 'url(/img/icons.svg) '+(-195/14)+'em '+(-4/14)+'em';
       this.bubblePointer.style.backgroundSize = ''+(320/14)+'em '+(96/14)+'em';
       this.stage.root.appendChild(this.bubble);
     }
@@ -4333,6 +4330,53 @@ var P = (function() {
   };
 
 }());
+
+ //var socket = io.connect(window.location.hostname+':8082');
+ 
+ var sulfCloudVars = [];
+ var sulfCloudVarsChanged = {};
+ var sulfVarsload;
+ var firstRunSulfCloudVars = true;
+ 
+ var cloudManager = function (vars){
+	 
+	if(firstRunSulfCloudVars){
+		
+		  sulfVarsload = vars;
+	 
+		 firstRunSulfCloudVars = false;
+		 
+	 }else{
+		 return;
+	 }
+	 
+	 var j = 0;
+	for (var i = 0;i < vars.length;i++){
+		
+		if(sulfVarsload[i].name.substring(sulfVarsload[i].name.indexOf(".")+1,sulfVarsload[i].name.indexOf(".")+3) == 'c.' ||sulfVarsload[i].name.charAt(0) == '☁'){
+			sulfCloudVars[j] = sulfVarsload[i];
+			j++;
+		}
+		
+	}
+	 
+	 if(typeof sulfCloudVars[0] != 'undefined' ){
+		 
+		setInterval(function(){
+	
+		//socket.emit('getReq', {"projectID": projectID ,sulfCloudVarsChanged} );	
+		sulfCloudVarsChanged = {};
+	
+	}, 1000);
+	 
+	 }
+	 
+));
+	
+	}
+	
+	
+
 var sulfCookieVars = {};
 var sulfUsername;
 var sulfCookieSaved = {};
@@ -4509,7 +4553,6 @@ P.compile = (function() {
     var label = function() {
       var id = nextLabel();
       fns.push(source.length);
-      //visual = 0;
       return id;
     };
 
@@ -4575,11 +4618,9 @@ P.compile = (function() {
         t === '%b' ? 'bool' : '';
 
       if (kind === 'num' && usenum) {
-        //used[i] = true;
         return 'C.numargs[' + i + ']';
       }
       if (kind === 'bool' && usebool) {
-        //used[i] = true;
         return 'C.boolargs[' + i + ']';
       }
 
@@ -4627,7 +4668,15 @@ P.compile = (function() {
         return 'self.getCostumeName()';
 
       } else if (e[0] === 'readVariable') {
-
+		    
+		if(e[1].substring(e[1].indexOf(".")+1,e[1].indexOf(".")+3) == 'c.' ||e[1].charAt(0) == '☁'  ){
+			
+				
+				return 'sulfCloudVars["'+e[1]+'"]';
+				
+		}
+			
+			
         switch(e[1]){
 			
           case 'sulf.time':
@@ -5280,6 +5329,34 @@ P.compile = (function() {
       } else if (block[0] === 'stampCostume') {
 
         source += 'S.draw(self.penContext);\n';
+ 
+      } else if (block[0] === 'setVar:to:') { /* Data */	
+				
+			
+			try{
+				
+			if(block[1].substring(block[1].indexOf(".")+1,block[1].indexOf(".")+3) == 'c.' ||block[1].charAt(0) == '☁' ){
+			console.log("cloud "+ block[1]);
+			source +=	'console.log('+val(block[1])+");\n";	
+				source +=	'sulfCloudVarsChanged['+val(block[1])+']='+val(block[2])+';\n';	
+				
+			}
+			}catch{
+				console.log(block[1]);
+				for(var i = 0;i< block[1].length;i++){
+					
+					if(block[1][i].substring(block[1][i].indexOf(".")+1,block[1][i].indexOf(".")+3) == 'c.' ||block[1][i].charAt(0) == '☁' ){
+			console.log("cloud "+ block[1]);
+			source +=	'console.log('+val(block[1])+");\n";	
+				source +=	'sulfCloudVarsChanged['+val(block[1])+']='+val(block[2])+';\n';	
+				break;
+			}
+				}
+				
+				source +=	'console.log('+val(block[1])+");\n";
+				
+			}
+       
 
 	   source += varRef(block[1]) + ' = ' + val(block[2]) + ';\n';
 
@@ -5292,6 +5369,13 @@ P.compile = (function() {
 		
 		//source +=	'console.log('+varRef(block[1])+");\n";	
         source += ref + ' = (+' + ref + ' || 0) + ' + num(block[2]) + ';\n';
+			if(block[1].substring(block[1].indexOf(".")+1,block[1].indexOf(".")+3) == 'c.' ||block[1].charAt(0) == '☁' ){
+				
+				source +=	'sulfCloudVarsChanged['+val(block[1])+']='+varRef(block[1])+';\n';	
+				
+			}
+		
+		
 
       } else if (block[0] === 'append:toList:') {
 
@@ -5834,7 +5918,9 @@ P.runtime = (function() {
   };
 
   var getVars = function(name) {
+	  
     return self.vars[name] !== undefined ? self.vars : S.vars;
+	
   };
 
   var getLists = function(name) {
@@ -6136,6 +6222,7 @@ P.runtime = (function() {
   };
 
   var running = function(bases) {
+	  
     for (var j = 0; j < self.queue.length; j++) {
       if (self.queue[j] && bases.indexOf(self.queue[j].base) !== -1) return true;
     }
@@ -6285,7 +6372,10 @@ P.runtime = (function() {
     P.Stage.prototype.step = function() {
 
 	 self = this;
-
+		for(var i = 0;i < Object.keys(sulfCloudVars).length;i++){
+			this.vars[Object.keys(sulfCloudVars)[i]] = sulfCloudVars[Object.keys(sulfCloudVars)[i]];
+		}
+		
 		
       VISUAL = false;
       var start = Date.now();
