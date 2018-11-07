@@ -1545,112 +1545,368 @@ var P = (function() {
     this.root.appendChild(this.backdropCanvas);
     this.backdropCanvas.width = SCALE * 480;
     this.backdropCanvas.height = SCALE * 360;
-    this.backdropContext = this.backdropCanvas.getContext('2d');
-
+    //this.backdropContext = this.backdropCanvas.getContext('2d');
+    this.backdropContext = this.backdropCanvas.getContext('webgl') ||
+                           this.backdropCanvas.getContext('experimental-webgl');
+    
+    if(!this.backdropContext) P.showWebGLError('backdropContext could not be initialized.');
+    
+    this.backdropContext.imgShader = initShaderProgram(this.backdropContext, Shader.imgVert, Shader.imgFrag);
+    
+    this.backdropContext.imgShaderInfo = {
+      program: this.backdropContext.imgShader,
+      attribLocations: {
+        position: this.backdropContext.getAttribLocation(this.backdropContext.imgShader, 'position'),
+        texcoord: this.backdropContext.getAttribLocation(this.backdropContext.imgShader, 'texcoord'),
+      },
+      uniformLocations: {
+        matrix:      this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'u_matrix'),
+        texture:     this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'u_texture'),
+        texSize:     this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'texSize'),
+        colorEffect: this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'colorEffect'),
+        colorMatrix: this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'colorMatrix'),
+        texEffect:   this.backdropContext.getUniformLocation(this.backdropContext.imgShader, 'texEffect'),        
+      },
+      blendSource: this.backdropContext.SRC_ALPHA,
+      blendDest: this.backdropContext.ONE_MINUS_SRC_ALPHA,      
+    }
+    this.backdropContext.imgBuffers = initImgBuffers(this.backdropContext);
+    
+    /********************   PEN Canvas   ********************/
+    
     this.penCanvas = document.createElement('canvas');
     this.root.appendChild(this.penCanvas);
     this.penCanvas.width = SCALE * 480;
     this.penCanvas.height = SCALE * 360;
-    this.penContext = this.penCanvas.getContext('2d');
-    this.penContext.lineCap = 'round';
-    this.penContext.scale(SCALE, SCALE);
-
+    this.penCanvas.setAttribute('id', 'penCanvas');
+    //this.penCanvas.setAttribute('style', 'display: none');
+    //this.penContext = this.penCanvas.getContext('2d');
+    //this.penContext.lineCap = 'butt';
+    //this.penContext.scale(SCALE, SCALE);
+    this.penContext = this.penCanvas.getContext('webgl', {preserveDrawingBuffer: true}) ||
+                      this.penCanvas.getContext('experimental-webgl', {preserveDrawingBuffer: true});
+    
+    if(!this.penContext) P.showWebGLError('penContext could not be initialized.');
+    
+		// Scene is automatically redrawn when arrays are full.
+		// Thus, we don't need to call new float32Array() when creating the VBOs,
+		// which would cause stutter due to garbage collection.
+		//
+		// Possibly tweak values for optimal performance.
+    this.penCoords = new Float32Array(65536);
+    this.penLines  = new Float32Array(32768);
+    this.penColors = new Float32Array(65536);
+    this.penCoordIndex = 0;
+    this.penLineIndex  = 0;
+    this.penColorIndex = 0;
+    
+    // Load and compile shaders
+    this.penContext.penShader = initShaderProgram(this.penContext, Shader.penVert, Shader.penFrag);
+    
+    this.penContext.penShaderInfo = {
+      program: this.penContext.penShader,
+      attribLocations: {
+        vertexData:       this.penContext.getAttribLocation(this.penContext.penShader, 'vertexData'),
+        lineData:         this.penContext.getAttribLocation(this.penContext.penShader, 'lineData'),
+        colorData:        this.penContext.getAttribLocation(this.penContext.penShader, 'colorData'),
+      },
+      uniformLocations: {
+        projectionMatrix: this.penContext.getUniformLocation(this.penContext.penShader, 'uProjectionMatrix'),
+        modelViewMatrix:  this.penContext.getUniformLocation(this.penContext.penShader, 'uModelViewMatrix'),
+      },     
+    };  
+    this.penContext.penBuffers = {
+      position: this.penContext.createBuffer(),
+      line: this.penContext.createBuffer(),
+      color: this.penContext.createBuffer(), 
+    };
+    
+    
+    this.penContext.imgShader = initShaderProgram(this.penContext, Shader.imgVert, Shader.imgFrag);
+    
+    this.penContext.imgShaderInfo = {
+      program: this.penContext.imgShader,
+      attribLocations: {
+        position: this.penContext.getAttribLocation(this.penContext.imgShader, 'position'),
+        texcoord: this.penContext.getAttribLocation(this.penContext.imgShader, 'texcoord'),
+      },
+      uniformLocations: {
+        matrix:      this.penContext.getUniformLocation(this.penContext.imgShader, 'u_matrix'),
+        texture:     this.penContext.getUniformLocation(this.penContext.imgShader, 'u_texture'),
+        texSize:     this.penContext.getUniformLocation(this.penContext.imgShader, 'texSize'),
+        colorEffect: this.penContext.getUniformLocation(this.penContext.imgShader, 'colorEffect'),
+        colorMatrix: this.penContext.getUniformLocation(this.penContext.imgShader, 'colorMatrix'),
+        texEffect:   this.penContext.getUniformLocation(this.penContext.imgShader, 'texEffect'),             
+      },
+      blendSource: this.penContext.SRC_ALPHA,
+      blendDest: this.penContext.ONE_MINUS_SRC_ALPHA,      
+    }
+    this.penContext.imgBuffers = initImgBuffers(this.penContext);
+    
+    /********************   COSTUME Canvas   ********************/
+    
     this.canvas = document.createElement('canvas');
     this.root.appendChild(this.canvas);
     this.canvas.width = SCALE * 480;
     this.canvas.height = SCALE * 360;
-    this.context = this.canvas.getContext('2d');
+    this.canvas.setAttribute('id', 'canvas');
+    //this.context = this.canvas.getContext('2d');
+    this.context = this.canvas.getContext('webgl') ||
+                   this.canvas.getContext('experimental-webgl');
+    
+    if(!this.context) P.showWebGLError('context could not be initialized.');
+    
+    this.context.imgShader = initShaderProgram(this.context, Shader.imgVert, Shader.imgFrag);
+    
+    this.context.imgShaderInfo = {
+      program: this.context.imgShader,
+      attribLocations: {
+        position:    this.context.getAttribLocation(this.context.imgShader, 'position'),
+        texcoord:    this.context.getAttribLocation(this.context.imgShader, 'texcoord'),
+      },
+      uniformLocations: {
+        matrix:      this.context.getUniformLocation(this.context.imgShader, 'u_matrix'),
+        texture:     this.context.getUniformLocation(this.context.imgShader, 'u_texture'),
+        texSize:     this.context.getUniformLocation(this.context.imgShader, 'texSize'),
+        colorEffect: this.context.getUniformLocation(this.context.imgShader, 'colorEffect'),
+        colorMatrix: this.context.getUniformLocation(this.context.imgShader, 'colorMatrix'),
+        texEffect:   this.context.getUniformLocation(this.context.imgShader, 'texEffect'),
+      },
+      blendSource: this.context.SRC_ALPHA,
+      blendDest: this.context.ONE_MINUS_SRC_ALPHA,      
+    }
+    this.context.imgBuffers = initImgBuffers(this.context);
+    
+    /********************   COLLISION Canvas   ********************/
+    
+    this.glCollisionCanvas = document.createElement('canvas');
+    this.root.appendChild(this.glCollisionCanvas);
+    this.glCollisionCanvas.width = 480;
+    this.glCollisionCanvas.height = 360;
+    this.glCollisionCanvas.setAttribute('id', 'glCollisionCanvas');
+    this.glCollisionCanvas.setAttribute('style', 'display: none;');
+    this.glCollisionContext = this.glCollisionCanvas.getContext('webgl', {preserveDrawingBuffer: true}) ||
+                              this.glCollisionCanvas.getContext('experimental-webgl', {preserveDrawingBuffer: true});
+    
+    if(!this.glCollisionContext) P.showWebGLError('glCollisionContext could not be initialized.');
 
-    this.ui = document.createElement('div');
-    this.root.appendChild(this.ui);
-    this.ui.style.pointerEvents = 'none';
-    this.ui.style.contain = 'strict';
-
+    //Scissor test for faster collision detection.
+    this.stage.glCollisionContext.enable(this.stage.glCollisionContext.SCISSOR_TEST);    
+    this.stage.glCollisionContext.scissor(0, 0, 480, 360);
+ 
+    this.glCollisionContext.imgShader = initShaderProgram(this.glCollisionContext, Shader.imgVert, Shader.imgFrag);
+    
+    this.glCollisionContext.imgShaderInfo = {
+      program: this.glCollisionContext.imgShader,
+      attribLocations: {
+        position:    this.glCollisionContext.getAttribLocation(this.glCollisionContext.imgShader, 'position'),
+        texcoord:    this.glCollisionContext.getAttribLocation(this.glCollisionContext.imgShader, 'texcoord'),
+      },
+      uniformLocations: {
+        matrix:      this.glCollisionContext.getUniformLocation(this.glCollisionContext.imgShader, 'u_matrix'),
+        texture:     this.glCollisionContext.getUniformLocation(this.glCollisionContext.imgShader, 'u_texture'),
+        texSize:     this.glCollisionContext.getUniformLocation(this.glCollisionContext.imgShader, 'texSize'),
+        colorEffect: this.glCollisionContext.getUniformLocation(this.glCollisionContext.imgShader, 'colorEffect'),
+        colorMatrix: this.glCollisionContext.getUniformLocation(this.glCollisionContext.imgShader, 'colorMatrix'),
+        texEffect:   this.glCollisionContext.getUniformLocation(this.glCollisionContext.imgShader, 'texEffect'),
+      },  
+      blendSource: this.glCollisionContext.SRC_ALPHA,
+      blendDest: this.glCollisionContext.ONE_MINUS_SRC_ALPHA,
+    }
+    this.glCollisionContext.imgBuffers = initImgBuffers(this.glCollisionContext);    
+    
+    
+    
+    this.glCollisionContext.touchingShader = initShaderProgram(this.glCollisionContext, Shader.touchingVert, Shader.touchingFrag);
+    
+    this.glCollisionContext.touchingShaderInfo = {
+      program: this.glCollisionContext.touchingShader,
+      attribLocations: {
+        position:    this.glCollisionContext.getAttribLocation(this.glCollisionContext.touchingShader, 'position'),
+        texcoord:    this.glCollisionContext.getAttribLocation(this.glCollisionContext.touchingShader, 'texcoord'),        
+      },
+      uniformLocations: {
+        matrix:      this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'u_matrix'),
+        texture:     this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'u_texture'),
+        tColor:      this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'tColor'),
+        texSize:     this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'texSize'),
+        colorEffect: this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'colorEffect'),
+        colorMatrix: this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'colorMatrix'),
+        texEffect:   this.glCollisionContext.getUniformLocation(this.glCollisionContext.touchingShader, 'texEffect'),   
+      },
+      blendSource: this.glCollisionContext.DST_ALPHA,
+      blendDest: this.glCollisionContext.ZERO,      
+    }
+    
+    
     this.canvas.tabIndex = 0;
     this.canvas.style.outline = 'none';
     this.backdropCanvas.style.position =
     this.penCanvas.style.position =
     this.canvas.style.position =
-    this.ui.style.position = 'absolute';
-    this.backdropCanvas.style.left =
-    this.penCanvas.style.left =
-    this.canvas.style.left =
-    this.ui.style.left =
-    this.backdropCanvas.style.top =
-    this.penCanvas.style.top =
-    this.canvas.style.top =
-    this.ui.style.top = 0;
+    this.glCollisionCanvas.style.position = 'absolute';
     this.backdropCanvas.style.width =
     this.penCanvas.style.width =
     this.canvas.style.width =
-    this.ui.style.width = '480px';
+    this.glCollisionCanvas.style.width = '480px';
     this.backdropCanvas.style.height =
     this.penCanvas.style.height =
     this.canvas.style.height =
-    this.ui.style.height = '360px';
+    this.glCollisionCanvas.style.height = '360px';
+    
+    //this.glCollisionCanvas.style.width = '240px';
+    //this.glCollisionCanvas.style.height = '180px';
+    
+    this.backdropContext.clearColor(0.0, 0.0, 0.0, 0.0);
+    this.penContext.clearColor(0.0, 0.0, 0.0, 0.0);
+    this.context.clearColor(0.0, 0.0, 0.0, 0.0);
+    this.glCollisionContext.clearColor(0.0, 0.0, 0.0, 0.0);
 
-    this.backdropCanvas.style.transform =
-    this.penCanvas.style.transform =
-    this.canvas.style.transform =
-    this.ui.style.transform = 'translateZ(0)';
+    // hardware acceleration
+    this.root.style.WebkitTransform = 'translateZ(0)';
 
-    this.root.addEventListener('keydown', function(e) {
-      var c = e.keyCode;
-      if (!this.keys[c]) this.keys.any++;
-      this.keys[c] = true;
-      if (e.ctrlKey || e.altKey || e.metaKey || c === 27) return;
-      e.stopPropagation();
-      if (e.target === this.canvas) {
-        e.preventDefault();
-        this.trigger('whenKeyPressed', c);
-      }
+    // added old way here and split...
+	  
+     this.root.addEventListener('keypress', function(e) { // pf shift symbols helper.
+       if (ASCII) {
+	 
+           if (e.altKey || e.metaKey || e.keyCode === 27) { // tjvr
+             //return; // PF allow e.ctrlKey || allow e.shiftkey
+           }
+           var key = e.keyCode;
+
+           //console.log(this.keys[key]); // debug only
+           if (e.target === this.canvas && !this.keys[key]) {
+
+	     ShiftKey = false;
+	     if (key > 64 && key < 91) {
+	       ShiftKey = true;	 
+	     }		   
+		   
+	     this.keys[key] = true; // mandatory for symbols
+	     self.key = key; // resets symbol keys
+	     e.stopPropagation();
+             e.preventDefault();
+             //this.trigger('whenKeyPressed', key); // *
+           }
+	 
+       } else {
+	     // TODO: as before (not needed)      
+       }	       
     }.bind(this));
 
+    this.root.addEventListener('keydown', function(e) { // pf inc. arrow keys and shift key mapper
+      if (ASCII) {
+
+          if (e.altKey || e.metaKey || e.keyCode === 27) { // tjvr
+            return; // PF allow e.ctrlKey || 
+          }
+          var key = e.keyCode;
+	        //console.log(key); // debug only
+          e.stopPropagation();
+          if (e.target === this.canvas && !this.keys[key] && "16.17.37.38.39.40".match(key.toString())) { // 
+	    if (key == 16) key = 128; // (Shift key hack) was 0
+	    //if (key == 17) key = 0;  
+	    if (key == 37) key = 28;
+	    if (key == 39) key = 29;
+	    if (key == 38) key = 30;
+	    if (key == 40) key = 31;
+	    this.keys[key] = true; // pf done in keypress?
+	    self.key = key;
+            e.preventDefault();
+	    if (ShiftKey) {
+	      //console.log("Shift Pressed\n"); // debug only
+              this.trigger('whenKeyPressed', 128);
+	      //this.trigger('whenKeyPressed', key);
+	    } else {
+	      this.trigger('whenKeyPressed', key);	    
+	    }
+          }
+	
+      } else {
+        // TODO: as before    
+        if (e.altKey || e.metaKey || e.keyCode === 27) { // tjvr
+          return; // PF allow e.ctrlKey || 
+        }
+        //console.log(e.keyCode)+"\n";
+        this.keys[e.keyCode] = true;
+        e.stopPropagation();
+        if (e.target === this.canvas) {
+          e.preventDefault();
+          this.trigger('whenKeyPressed', e.keyCode);
+        }	       
+      }	       
+    }.bind(this));	  
+	  
     this.root.addEventListener('keyup', function(e) {
-      var c = e.keyCode;
-      if (this.keys[c]) this.keys.any--;
-      this.keys[c] = false;
-      e.stopPropagation();
-      if (e.target === this.canvas) {
-        e.preventDefault();
+      if (ASCII) {
+    
+          var key = e.keyCode;
+	  if (key == 16) key = 128; 
+          //console.log(key); // db2
+          this.keys[key] = false;
+          if (key > 64 && key < 91) this.keys[key+32] = false; // was +32
+          this.keys[self.key] = false;
+          if (ShiftKey) {
+	    //this.keys[128] = false;
+	  } else {
+	    //console.log (self.key + " :: " + key); // debug only
+	  }
+          e.stopPropagation();
+          if (e.target === this.canvas) {
+            e.preventDefault();
+          }
+
+      } else {
+	// TODO: as before   
+        this.keys[e.keyCode] = false;
+        e.stopPropagation();
+        if (e.target === this.canvas) {
+          e.preventDefault();
+        }	       
       }
     }.bind(this));
+	
+	//Changed this to include both event listeners, otherwise Hybrid laptops may not work. Possibly add extra option for hybrids instead.
+    //if (hasTouchEvents) {
 
-    if (hasTouchEvents) {
-
-      document.addEventListener('touchstart', this.onTouchStart = function(e) {
+      document.addEventListener('touchstart', function(e) {
         this.mousePressed = true;
         for (var i = 0; i < e.changedTouches.length; i++) {
-          var t = e.changedTouches[i];
-          this.updateMouse(t);
+          this.updateMouse(e.changedTouches[i]);
           if (e.target === this.canvas) {
             this.clickMouse();
-          } else if (e.target.dataset.button != null || e.target.dataset.slider != null) {
-            this.watcherStart(t.identifier, t, e);
           }
         }
         if (e.target === this.canvas) e.preventDefault();
       }.bind(this));
 
-      document.addEventListener('touchmove', this.onTouchMove = function(e) {
+      document.addEventListener('touchmove', function(e) {
         this.updateMouse(e.changedTouches[0]);
-        for (var i = 0; i < e.changedTouches.length; i++) {
-          var t = e.changedTouches[i];
-          this.watcherMove(t.identifier, t, e);
-        }
       }.bind(this));
 
-      document.addEventListener('touchend', this.onTouchEnd = function(e) {
+      document.addEventListener('touchend', function(e) {
         this.releaseMouse();
-        for (var i = 0; i < e.changedTouches.length; i++) {
-          var t = e.changedTouches[i];
-          this.watcherEnd(t.identifier, t, e);
-        }
       }.bind(this));
+	  
+	  // Eventlistener for starting audio on mobile.
+	  document.addEventListener('touchend', function(e) {
+		if(!audioContext.mInit){
+		  audioContext.mInit = true;
+		  var osc = audioContext.createOscillator();
+		  osc.frequency.value = 0;
+		  osc.connect(audioContext.destination);
+		  osc.start(0);
+		  osc.stop(0);
+		}
+	  }.bind(this));
+	  
+	  
+	  //if(hasTouchEvents){
 
-    } else {
+    //} else {
 
-      document.addEventListener('mousedown', this.onMouseDown = function(e) {
+      document.addEventListener('mousedown', function(e) {
         this.updateMouse(e);
         this.mousePressed = true;
 
@@ -1658,30 +1914,23 @@ var P = (function() {
           this.clickMouse();
           e.preventDefault();
           this.canvas.focus();
-        } else {
-          if (e.target.dataset.button != null || e.target.dataset.slider != null) {
-            this.watcherStart('mouse', e, e);
-          }
-          if (e.target !== this.prompt) setTimeout(function() {
-            this.canvas.focus();
-          }.bind(this));
         }
       }.bind(this));
 
-      document.addEventListener('mousemove', this.onMouseMove = function(e) {
+      document.addEventListener('mousemove', function(e) {
         this.updateMouse(e);
-        this.watcherMove('mouse', e, e);
       }.bind(this));
 
-      document.addEventListener('mouseup', this.onMouseUp = function(e) {
+      document.addEventListener('mouseup', function(e) {
         this.updateMouse(e);
         this.releaseMouse();
-        this.watcherEnd('mouse', e, e);
       }.bind(this));
-    }
+    //}
 
+	
+	
     this.prompter = document.createElement('div');
-    this.ui.appendChild(this.prompter);
+    this.root.appendChild(this.prompter);
     this.prompter.style.zIndex = '1';
     this.prompter.style.pointerEvents = 'auto';
     this.prompter.style.position = 'absolute';
@@ -1747,58 +1996,217 @@ var P = (function() {
 
   Stage.prototype.isStage = true;
 
-  Stage.prototype.watcherStart = function(id, t, e) {
-    var p = e.target;
-    while (p && p.dataset.watcher == null) p = p.parentElement;
-    if (!p) return;
-    var w = this.allWatchers[p.dataset.watcher]
-    this.dragging[id] = {
-      watcher: w,
-      offset: (e.target.dataset.button == null ? -w.button.offsetWidth / 2 | 0 : w.button.getBoundingClientRect().left - t.clientX) - w.slider.getBoundingClientRect().left
-    };
+  
+  Stage.prototype.initLists = function () {
+    var show = false; // init show / hide of all stage and childrens lists
+    var name = false;
+    var o_list = this.lists;
+    var o_listInfo = this.listsInfo; // may need to loop this?
+  
+    if (o_list && o_listInfo) {
+      for (var key in o_listInfo) {
+        var obj = o_listInfo[key];
+	for (var prop in obj) {
+	 // skip loop if the property is from prototype //console.log(prop + " = " + obj[prop]);
+	  if (!obj.hasOwnProperty(prop)) {
+	    continue;
+	  }
+	  if (obj[prop].toString() == "t") {
+	    console.log("List: " + key + " = true");
+	    
+		this.showList(key);
+	    break;
+	  }
+	}
+      }	     
+    }
+  	  
+    var oc_list;
+    var oc_listInfo;
+    // loop around children
+    for (var oc = 0; oc < this.children.length; oc++) {
+      oc_listInfo = this.children[oc].listsInfo;
+      if (oc_listInfo) {	     
+	for (var key in o_listInfo) {
+	  var obj = oc_listInfo[key];
+	  for (var prop in obj) {
+          // skip loop if the property is from prototype //console.log(prop + " = " + obj[prop]);
+	    if (!obj.hasOwnProperty(prop)) {
+	      continue;
+	    }
+	    if (obj[prop].toString() == "t") {
+	      console.log("List: " + key + " = true");
+	      this.showList(key);
+	      break;
+	    }
+	  }
+	}
+      }
+    }
   };
-  Stage.prototype.watcherMove = function(id, t, e) {
-    var d = this.dragging[id];
-    if (!d) return;
-    var w = d.watcher
-    var sw = w.slider.offsetWidth;
-    var bw = w.button.offsetWidth;
-    var value = w.sliderMin + Math.max(0, Math.min(1, (t.clientX + d.offset) / (sw - bw))) * (w.sliderMax - w.sliderMin);
-    w.target.vars[w.param] = w.isDiscrete ? Math.round(value) : Math.round(value * 100) / 100;
-    w.update();
-    e.preventDefault();
-  };
-  Stage.prototype.watcherEnd = function(id, t, e) {
-    this.watcherMove(id, t, e);
-    delete this.dragging[id];
+  
+  Stage.prototype.updateList = function (name) {
+    // this function is a potential performance killer, so only invoke if 'name' list is showing...
+    if (document.getElementById(name)) {
+      var show = false; // init show / hide of all stage and childrens lists
+      //var name = false;
+      var o_list = this.lists;
+      var o_listInfo = this.listsInfo; // may need to loop this?
+  
+      if (o_list && o_listInfo) {
+        for (var key in o_listInfo) {
+          var obj = o_listInfo[key];
+	  for (var prop in obj) {
+	   // skip loop if the property is from prototype //console.log(prop + " = " + obj[prop]);
+	    if (!obj.hasOwnProperty(prop)) {
+	      continue;
+	    }
+	    if (obj[prop].toString() == "t") {
+	      console.log("List: " + key + " = true");
+	      if (key == name) {
+	        this.showList(key);
+	        break;	      
+              }
+            }
+          }
+        }	     
+      }
+    }
   };
 
-  Stage.prototype.destroy = function() {
-    this.stopAll();
-    this.pause();
-    if (this.onTouchStart) document.removeEventListener('touchstart', this.onTouchStart);
-    if (this.onTouchMove) document.removeEventListener('touchmove', this.onTouchMove);
-    if (this.onTouchEnd) document.removeEventListener('touchend', this.onTouchEnd);
-    if (this.onMouseDown) document.removeEventListener('mousedown', this.onMouseDown);
-    if (this.onMouseMove) document.removeEventListener('mousemove', this.onMouseMove);
-    if (this.onMouseUp) document.removeEventListener('mouseup', this.onMouseUp);
-  };
+  // pf new way - works with scaling via em's (was px)
+  Stage.prototype.showList = function(name) {
+    console.log("Show List:" + name + " isTurbo:" + this.isTurbo); // if turbo mode then only draw list every 4 ticks?
 
+    var o_div_test = document.getElementById(name);
+    if (this.isTurbo && o_div_test && (Date.now()%1024) <= 1000) return; //console.log("### RENDER ###");
+
+    if (o_div_test) {
+      console.log("List already rendered. DOM");
+      this.stage.root.removeChild(o_div_test);
+    }
+	
+    var o_list = (this.lists[name]) ? this.lists[name] : this.lists[name];
+    var o_listInfo = (this.listsInfo[name]) ? this.listsInfo[name] : this.listsInfo[name];	  
+    if (o_list && o_listInfo) {
+     /* for (var ol = 0; ol < o_list.length; ol++) {
+       * console.log((ol+1) + " : " + o_list[ol]+"\n");
+      }*/
+      console.log(o_listInfo+"\n");
+	  
+    } else {
+      for (var oc = 0; oc < this.children.length; oc++) {
+        if (this.children[oc].lists && this.children[oc].lists[name]) { // pf ###
+          o_list = this.children[oc].lists[name];
+	  o_listInfo = this.children[oc].listsInfo[name];
+          break;
+	}
+      }
+      if (o_list) {
+        for (var ol = 0; ol < o_list.length; ol++) {
+          console.log((ol+1) + " :: " + o_list[ol]+"\n");
+        }
+	console.log(o_listInfo+"\n");
+      } 
+    }
+	  
+    if (o_list && o_listInfo) {
+	// display list using divs. Thanks to Dogtopius for the CSS colours!
+	var info = o_listInfo.split(",");    
+	var show = !!(o_listInfo.match("true"));
+	var divContainer = document.createElement('div');
+	var overflow = (2 + parseInt(info[0], 10) + parseInt(info[2], 10)) - 480; // border + left + width needs to be - 480px
+	divContainer.id = name;
+	divContainer.style.border = "solid #949191 2px"; // 
+	divContainer.style.margin = "5px";
+	divContainer.style.padding = "0";
+	divContainer.style.borderRadius = "7px";
+        divContainer.style.backgroundColor = "#c1c4c7";
+	divContainer.style.position = 'absolute';
+	divContainer.style.overflow = 'hidden';
+	divContainer.style.left = (info[0] - 7) + 'px'; // border + margin
+	divContainer.style.top = (info[1] - 7) + 'px'; // border + margin 
+	if (overflow > 0) { // disable?
+		divContainer.style.width = (info[2] - overflow) + 'px'; // if left + width > 480 then adjust to be < 480	    
+			
+	
+	} else {
+		divContainer.style.width = info[2] + 'px';
+	}
+	if (o_list.length) divContainer.style.height = info[3] + 'px';
+	divContainer.innerHTML = "<div style='margin: 2px'><span style='font-size: 12px; text-align: center; font-weight: bold;'><center>" + name + "</center></span></div>";
+	    
+	var divHolder = this.stage.root.appendChild(divContainer); // or this.stage.canvas.parentNode;
+	var divInner = document.createElement('div');
+	divInner.style.position = 'relative';
+	divInner.style.overflow = 'auto';
+	divInner.style.height = '86%'; // as before (magic number!)
+
+	var divItem;
+	var replaced;
+	
+	for (var i = 0; i < o_list.length; i++) { // test
+	  divItem = document.createElement('div');
+	  divItem.style.backgroundColor = "#c1c4c7";
+	  try {replaced = o_list[i].replace(/'/g, "&#39;");} catch(e) {replaced = o_list[i];} // pf fix replace
+	  //if (typeof o_list[i] == "undefined") {replaced = o_list[i];} else {replaced = o_list[i].replace(/'/g, "&#39;");} // pf fix replace !worky
+	  divItem.innerHTML = "<input readonly value=' " + (i + 1) + "' style='color: #000; border: 0; background-color: #c1c4c7; width: 10%; font-size: 11px; margin: 1px'/> <input readonly value='" + replaced + "' style='font-size: 12px; background-color: #cc5b22; color: white; width: 75%; height: 10px; border: 1px solid #fff; border-radius: 3px; padding: 3px; margin: 0px;' />"; // TODO: rid 75% width and calc instead!
+	  divInner.appendChild(divItem);	
+	}
+	    
+	var divItem2 = document.createElement('div');
+	//divItem2.style.position = 'relative';
+	if (o_list.length) {
+	  if ( o_list.length > (parseInt(info[3],10) / 22) ) { // magic number! 'calc text px size as ~ number of elements'    
+		console.log("Long List!"); 
+		divInner.style.height = (parseInt(info[3],10) - 40) + "px"; // magic number! 'px gap to remove to stop clash'
+	  }
+	  divItem2.innerHTML = "<div style='font-size: 11px; text-align: center; bottom: 2px; position: absolute; width: 100%;'>" +  "length: " + o_list.length + "</div>";
+	} else {
+	  var hem = info[3] > 270 ? 93 : 89; // help! (more magic tomfoolery)
+	  var pem = ( (info[3] / 100) * hem ) + 0; // qtest 
+	  console.log("HEIGHT=" + info[3] + " pem=" + pem);
+	  if (parseInt(info[1], 10) + parseInt(info[3], 10) < 360) { // !offscreen
+	    divItem = document.createElement('div');
+	    divItem.style.height = pem + 'px';
+	    divItem.innerHTML = "<div style='padding-top: " + (pem / 2.4) + "px'><div style='font-size: 11px; text-align: center;'>(empty)</div></div>"; // 
+	    divInner.appendChild(divItem);
+	    divItem2.innerHTML = "<div style='font-size: 11px; text-align: center; bottom: 2px; position: absolute; width: 100%;'>length: 0</div>";
+	  } else {
+	    // old way...	
+	    divItem2.innerHTML = "<div style='font-size: 11px; text-align: center;'><br><br>(empty)</div><div style='font-size: 11px; text-align: center; padding-bottom: 0.1px'><br><br>length: 0</div>"; 
+	  }
+	}
+	divHolder.appendChild(divInner);
+        divHolder.appendChild(divItem2);
+    }
+	if (this.saying) this.updateBubble();	  
+  };
+	
+  Stage.prototype.hideList = function(name) {
+     console.log("Hide List:" + name);
+     var o_div = document.getElementById(name);
+     if (o_div) this.stage.root.removeChild(o_div);
+  };	
+	
+  
+  
+  
+  
   Stage.prototype.fromJSON = function(data) {
     Stage.parent.prototype.fromJSON.call(this, data);
 
     data.children.forEach(function(d) {
       if (d.listName) return;
-      if (d.cmd) this.allWatchers.push(new Watcher(this).fromJSON(d));
-      else this.children.push(new Sprite(this).fromJSON(d));
+      this.children.push(new (d.cmd ? Watcher : Sprite)(this).fromJSON(d));
     }, this);
 
-    this.allWatchers.forEach(function(child) {
-      child.resolve();
+    this.children.forEach(function(child) {
+      if (child.resolve) child.resolve();
     }, this);
 
     P.compile(this);
-
+	
     return this;
   };
 
@@ -1812,8 +2220,9 @@ var P = (function() {
 
   Stage.prototype.updateMouse = function(e) {
     var bb = this.canvas.getBoundingClientRect();
-    var x = (e.clientX - bb.left) / this.zoom - 240;
-    var y = 180 - (e.clientY - bb.top) / this.zoom;
+	 var z = Math.max(this.zoomX, this.zoomY);
+    var x = (e.clientX - bb.left) / z - 240;
+    var y = 180 - (e.clientY - bb.top) / z;
     this.rawMouseX = x;
     this.rawMouseY = y;
     if (x < -240) x = -240;
@@ -1824,47 +2233,107 @@ var P = (function() {
     this.mouseY = y;
   };
 
+  Stage.prototype.updateOrientation = function(data) {
+			self.stage.alpha = data.do.alpha;
+			self.stage.beta = data.do.beta;
+			self.stage.gamma = data.do.gamma;
+	}
+  
+  
   Stage.prototype.updateBackdrop = function() {
-    this.backdropCanvas.width = this.zoom * SCALE * 480;
-    this.backdropCanvas.height = this.zoom * SCALE * 360;
+    this.backdropCanvas.width = this.zoomX * SCALE * 480;
+    this.backdropCanvas.height = this.zoomY * SCALE * 360;
     var costume = this.costumes[this.currentCostumeIndex];
+    
+    /*
     this.backdropContext.save();
-    var s = this.zoom * SCALE * costume.scale;
-    this.backdropContext.scale(s, s);
-    this.backdropContext.drawImage(costume.image, 0, 0);
+    var s = Math.max(this.zoomX * SCALE * costume.scale, this.zoomY * SCALE * costume.scale);
+    this.backdropContext.scale(s, s);    
+    this.backdropContext.drawImage(costume.image, 0, 0, costume.image.width/costume.resScale, costume.image.height/costume.resScale);    
     this.backdropContext.restore();
+    */
+    
+    var imgInfo = costume.image.imgInfo;
+    
+    glDrawImage(
+      this.backdropContext,
+      this.backdropContext.imgShaderInfo,
+      this.backdropContext.imgBuffers,
+      imgInfo,
+      //(imgInfo.width / costume.resScale / 2 - costume.rotationCenterX / 480 * imgInfo.width / costume.resScale) * costume.scale,
+      (imgInfo.width / costume.resScale * costume.scale - 480) / 2,
+      -(imgInfo.height / costume.resScale * costume.scale - 360) / 2,
+      imgInfo.width / costume.resScale * costume.scale,
+      imgInfo.height / costume.resScale * costume.scale,
+      0,
+      0,
+      0);
   };
-
+	
   Stage.prototype.updateFilters = function() {
+	  
     this.backdropCanvas.style.opacity = Math.max(0, Math.min(1, 1 - this.filters.ghost / 100));
   };
 
-  Stage.prototype.setZoom = function(zoom) {
-    if (this.zoom === zoom) return;
-    if (this.maxZoom < zoom * SCALE) {
-      this.maxZoom = zoom * SCALE;
-      var canvas = document.createElement('canvas');
-      canvas.width = this.penCanvas.width;
-      canvas.height = this.penCanvas.height;
-      canvas.getContext('2d').drawImage(this.penCanvas, 0, 0);
-      this.penCanvas.width = 480 * zoom * SCALE;
-      this.penCanvas.height = 360 * zoom * SCALE;
-      this.penContext.drawImage(canvas, 0, 0, 480 * zoom * SCALE, 360 * zoom * SCALE);
-      this.penContext.scale(this.maxZoom, this.maxZoom);
-      this.penContext.lineCap = 'round';
+  Stage.prototype.setZoom = function(zoomX, zoomY) {
+    if ((this.zoomX === zoomX) && (this.zoomY === zoomY)) return;
+	  var ps = Math.max(zoomX, zoomY);
+    if ((this.maxZoomX < zoomX * SCALE) || (this.maxZoomY < zoomY * SCALE)) {
+      this.maxZoomX = zoomX * SCALE;
+	    this.maxZoomY = zoomY * SCALE;
+      //var canvas = document.createElement('canvas');
+      //canvas.width = this.penCanvas.width;
+      //canvas.height = this.penCanvas.height;
+      //canvas.getContext('2d').drawImage(this.penCanvas, 0, 0);
+      
+      var imgInfo = glMakeTexture(this.penContext, this.penCanvas);
+
+      this.penCanvas.width = 480 * ps * SCALE;
+      this.penCanvas.height = 360 * ps * SCALE;
+      
+      glDrawImage(
+        this.penContext,
+        this.penContext.imgShaderInfo,
+        this.penContext.imgBuffers,
+        imgInfo,
+        0,
+        0,
+        480,
+        360,
+        0,
+        0,
+        0);
+      
+      this.penContext.deleteTexture(imgInfo.texture);
+      imgInfo = null;
+      
+      //this.penContext.drawImage(canvas, 0, 0, 480 * ps * SCALE, 360 * ps * SCALE);
+      //this.penContext.scale(this.maxZoomX, this.maxZoomY);
+      //this.penContext.lineCap = 'butt';	
     }
+    
+    
+    this.canvas.width = 
+    this.backdropCanvas.width =
+    this.glCollisionContext.width = (480 * zoomX | 0);
+    this.canvas.height = 
+    this.backdropCanvas.height =
+    this.glCollisionContext.height = (360 * zoomY | 0);
+    
+    
     this.root.style.width =
     this.canvas.style.width =
     this.backdropCanvas.style.width =
-    this.penCanvas.style.width =
-    this.ui.style.width = (480 * zoom | 0) + 'px';
+    this.glCollisionCanvas.style.width = (480 * zoomX | 0) + 'px';
+    this.penCanvas.style.width = (480 * ps | 0) + 'px';
     this.root.style.height =
     this.canvas.style.height =
     this.backdropCanvas.style.height =
-    this.penCanvas.style.height =
-    this.ui.style.height = (360 * zoom | 0) + 'px';
-    this.root.style.fontSize = (zoom*10) + 'px';
-    this.zoom = zoom;
+    this.glCollisionCanvas.style.height = (360 * zoomY | 0) + 'px';
+    this.penCanvas.style.height = (360 * ps | 0) + 'px';
+    this.root.style.fontSize = ps * 10 + 'px';
+    this.zoomX = zoomX;
+	  this.zoomY = zoomY;
     this.updateBackdrop();
   };
 
@@ -1872,7 +2341,7 @@ var P = (function() {
     this.mouseSprite = undefined;
     for (var i = this.children.length; i--;) {
       var c = this.children[i];
-      if (c.visible && c.filters.ghost < 100 && c.touching('_mouse_')) {
+      if (c.isSprite && c.visible && c.filters.ghost < 100 && c.touching('_mouse_')) {
         if (c.isDraggable) {
           this.mouseSprite = c;
           c.mouseDown();
@@ -1895,7 +2364,9 @@ var P = (function() {
 
   Stage.prototype.stopAllSounds = function() {
     for (var children = this.children, i = children.length; i--;) {
-      children[i].stopSounds();
+      if (children[i].isSprite) {
+        children[i].stopSounds();
+      }
     }
     this.stopSounds();
   };
@@ -1934,47 +2405,106 @@ var P = (function() {
 
   Stage.prototype.draw = function() {
     var context = this.context;
-
-    this.canvas.width = 480 * this.zoom * SCALE; // clear
-    this.canvas.height = 360 * this.zoom * SCALE;
-
-    context.scale(this.zoom * SCALE, this.zoom * SCALE);
+	
+    //this.canvas.width = 480 * this.zoomX * SCALE; // clear
+    //this.canvas.height = 360 * this.zoomY * SCALE;
+    
+    context.clear(context.COLOR_BUFFER_BIT);
+    
+	  var s = Math.max(this.zoomX * SCALE, this.zoomY * SCALE);
+    //context.scale(s, s);
     this.drawOn(context);
-    for (var i = this.allWatchers.length; i--;) {
-      var w = this.allWatchers[i];
-      if (w.visible) w.update();
-    }
-
+    
     if (this.hidePrompt) {
       this.hidePrompt = false;
       this.prompter.style.display = 'none';
       this.canvas.focus();
     }
+    
+		if(this.penCoordIndex){
+      this.renderPen(this.penContext, this.penContext.penShaderInfo, this.penContext.penBuffers);
+      this.penCoordIndex = 0;
+      this.penLineIndex  = 0;
+      this.penColorIndex = 0;
+		}
   };
 
   Stage.prototype.drawOn = function(context, except) {
     for (var i = 0; i < this.children.length; i++) {
-      var c = this.children[i];
-      if (c.visible && c !== except) {
-        c.draw(context);
+      if (this.children[i].visible && this.children[i] !== except ){
+        this.children[i].draw(context);
       }
     }
   };
 
   Stage.prototype.drawAllOn = function(context, except) {
     var costume = this.costumes[this.currentCostumeIndex];
+    
+    /*
     context.save();
     context.scale(costume.scale, costume.scale);
-    context.globalAlpha = Math.max(0, Math.min(1, 1 - this.filters.ghost / 100));
-    context.drawImage(costume.image, 0, 0);
+    context.globalAlpha = Math.max(0, Math.min(1, 1 - this.filters.ghost / 100));    
+    context.drawImage(costume.image, 0, 0, costume.image.width/costume.resScale, costume.image.height/costume.resScale);
     context.restore();
+    */
+ 
+    var tempTest = performance.now();
+ 
+    glDrawImage(
+      context,
+      context.imgShaderInfo,
+      context.imgBuffers,
+      costume.image.collisionImgInfo,
+      0,
+      0,
+      480,
+      360,
+      0,
+      0,
+      0);
 
+
+      
+    /*
     context.save();
-    context.scale(1 / this.maxZoom, 1 / this.maxZoom);
+	  var s = Math.max(this.maxZoomX, this.maxZoomY);
+    context.scale(1 / s, 1 / s);
     context.drawImage(this.penCanvas, 0, 0);
     context.restore();
+    */
+    
 
-    this.drawOn(context, except);
+    
+    var imgInfo = glMakeTexture(context, this.penCanvas);
+    
+    glDrawImage(
+      context,
+      context.imgShaderInfo,
+      context.imgBuffers,
+      imgInfo,
+      0,
+      0,
+      480,
+      360,
+      0,
+      0,
+      0);
+      
+    context.deleteTexture(imgInfo.texture);
+    imgInfo = null;
+
+    
+    //console.log(performance.now() - tempTest);
+    
+    //this.drawOn(context, except);
+    
+
+    
+    for (var i = 0; i < this.children.length; i++) {
+      if (this.children[i].visible && this.children[i] !== except && !(this.children[i] instanceof Watcher)) {
+        this.children[i].draw(context);
+      }
+    }    
   };
 
   Stage.prototype.moveTo = function() {};
@@ -1988,18 +2518,83 @@ var P = (function() {
       }
     }
   };
+  
+  Stage.prototype.renderPen = function(gl, programInfo, buffers){       
+    gl.viewport(0, 0, this.penCanvas.width, this.penCanvas.height);
+    
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.enable(gl.BLEND);
+    gl.disable(gl.DEPTH_TEST);
+		
+    //set up position buffer for coordinates
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  this.penCoords,
+                  gl.STREAM_DRAW);
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.vertexData,
+      4,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+    gl.enableVertexAttribArray(programInfo.attribLocations.vertexData);
 
+    //set up line description buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.line);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  this.penLines,
+                  gl.STREAM_DRAW);
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.lineData,
+      2,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+    gl.enableVertexAttribArray(programInfo.attribLocations.lineData);
+    
+    //set up color buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
+    gl.bufferData(gl.ARRAY_BUFFER,
+                  this.penColors,
+                  gl.STREAM_DRAW);
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.colorData,
+      4,
+      gl.FLOAT,
+      false,
+      0,
+      0);
+    gl.enableVertexAttribArray(programInfo.attribLocations.colorData);
+		
+    //draw pen lines as triangles.
+    gl.useProgram(programInfo.program);
+    gl.drawArrays(gl.TRIANGLES, 0, (this.penCoordIndex + 1) / 4);    
+    
+    /*
+    var err
+    if(err = gl.getError())
+      console.log('WebGL Error: ' + err);
+    */
+  }
+  
   var KEY_CODES = {
-    space: 32,
+    'space': 32,
+	  'ctrl': 17,
+	  'shift': 16,
     'left arrow': 37,
     'up arrow': 38,
     'right arrow': 39,
     'down arrow': 40,
-    any: 'any'
+    'any': 128
+	
   };
 
   var getKeyCode = function(keyName) {
-    return KEY_CODES[keyName.toLowerCase()] || keyName.toUpperCase().charCodeAt(0);
+	  if(typeof keyName !== 'string') keyName = "" + keyName;
+	
+  	return KEY_CODES[keyName.toLowerCase()] || keyName.toUpperCase().charCodeAt(0);
   };
 
   var Sprite = function(stage) {
@@ -2018,7 +2613,8 @@ var P = (function() {
     this.spriteInfo = {};
     this.visible = true;
 
-    this.penHue = 240;
+    this.Hue = 240;
+    this.penHue = 250;
     this.penSaturation = 100;
     this.penLightness = 50;
 
@@ -2087,7 +2683,6 @@ var P = (function() {
     };
 
     c.direction = this.direction;
-    c.instrument = this.instrument;
     c.indexInLibrary = this.indexInLibrary;
     c.isDraggable = this.isDraggable;
     c.rotationStyle = this.rotationStyle;
@@ -2097,10 +2692,19 @@ var P = (function() {
     c.scratchY = this.scratchY;
     c.visible = this.visible;
     c.penColor = this.penColor;
-    c.penCSS = this.penCSS;
+    
+    // Pen color in RGB mode?
+    c.penRGBA = this.penRGBA;
+    // Pen color in RGBA
+    c.penRed = this.penRed;
+    c.penGreen = this.penGreen;
+    c.penBlue = this.penBlue;
+    c.penAlpha = this.penAlpha;
+    //Pen color in HSL
     c.penHue = this.penHue;
     c.penSaturation = this.penSaturation;
     c.penLightness = this.penLightness;
+    
     c.penSize = this.penSize;
     c.isPenDown = this.isPenDown;
 
@@ -2141,12 +2745,324 @@ var P = (function() {
         x -= .5;
         y -= .5;
       }
-      context.strokeStyle = this.penCSS || 'hsl(' + this.penHue + ',' + this.penSaturation + '%,' + (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness) + '%)';
+
+      /*
+      context.strokeStyle = this.penRGBA || 'hsl(' + this.penHue + ',' + this.penSaturation + '%,' + (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness) + '%)';
+      
+      if(this.penSize > 2 * 480 / this.stage.penCanvas.width)
+        this.dotPen();
+      
       context.lineWidth = this.penSize;
       context.beginPath();
       context.moveTo(240 + ox, 180 - oy);
       context.lineTo(240 + x, 180 - y);
-      context.stroke();
+      context.stroke();    
+      */			
+      
+      //calculate color for vertices
+      var r, g, b, a;
+      if(this.penRGBA){
+        r = this.penRed;
+        g = this.penGreen;
+        b = this.penBlue;
+        a = this.penAlpha;
+      }
+      else{
+        var rgb = this.hsl2rgb(this.penHue, this.penSaturation, (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness));
+        r = rgb[0];
+        g = rgb[1];
+        b = rgb[2];
+        a = 1;
+      }
+      
+      /*
+      console.log(this.penRGBA);
+      console.log(this.penHue);
+      console.log(this.penSaturation);
+      console.log(this.penLightness);
+      console.log(this.hsl2rgb(this.penHue, this.penSaturation, (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness)));
+      */
+ 
+      var circleRes = Math.max(Math.ceil(this.penSize * Math.max(this.stage.zoomX, this.stage.zoomY)), 3);
+ 
+			// Redraw when array is full.
+			if(this.stage.penCoordIndex + 24 * (circleRes+1) > this.stage.penCoords.length){
+				this.stage.renderPen(this.stage.penContext, this.stage.penContext.penShaderInfo, this.stage.penContext.penBuffers);
+				this.stage.penCoordIndex = 0;
+				this.stage.penLineIndex  = 0;
+				this.stage.penColorIndex = 0;
+			}
+			
+      // draw line
+      {
+      // first triangle
+      // first coordinates
+      this.stage.penCoords[this.stage.penCoordIndex] = ox;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = oy;
+      this.stage.penCoordIndex++;
+
+      // first coordinates supplement
+      this.stage.penCoords[this.stage.penCoordIndex] = x;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = y;
+      this.stage.penCoordIndex++;
+      
+      //first vertex description
+      this.stage.penLines[this.stage.penLineIndex] = -Math.PI/2;
+      this.stage.penLineIndex++;
+      this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+      this.stage.penLineIndex++;
+      
+			
+			
+      // second coordinates
+      this.stage.penCoords[this.stage.penCoordIndex] = x;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = y;
+      this.stage.penCoordIndex++;
+
+      // second coordinates supplement
+      this.stage.penCoords[this.stage.penCoordIndex] = ox;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = oy;
+      this.stage.penCoordIndex++;
+      
+      //second vertex description
+      this.stage.penLines[this.stage.penLineIndex] = Math.PI/2;
+      this.stage.penLineIndex++;
+      this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+      this.stage.penLineIndex++;      
+      
+			
+			
+      // third coordinates
+      this.stage.penCoords[this.stage.penCoordIndex] = ox;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = oy;
+      this.stage.penCoordIndex++;
+
+      // third coordinates supplement
+      this.stage.penCoords[this.stage.penCoordIndex] = x;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = y;
+      this.stage.penCoordIndex++;
+
+      //second vertex description
+      this.stage.penLines[this.stage.penLineIndex] = Math.PI/2;
+      this.stage.penLineIndex++;
+      this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+      this.stage.penLineIndex++;
+      
+      
+      
+      
+      
+      // second triangle
+      // first coordinates
+      this.stage.penCoords[this.stage.penCoordIndex] = ox;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = oy;
+      this.stage.penCoordIndex++;
+
+      // first coordinates supplement
+      this.stage.penCoords[this.stage.penCoordIndex] = x;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = y;
+      this.stage.penCoordIndex++;
+      
+      //first vertex description
+      this.stage.penLines[this.stage.penLineIndex] = Math.PI/2;
+      this.stage.penLineIndex++;
+      this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+      this.stage.penLineIndex++;
+      
+			
+			
+      // second coordinates
+      this.stage.penCoords[this.stage.penCoordIndex] = x;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = y;
+      this.stage.penCoordIndex++;
+
+      // second coordinates supplement
+      this.stage.penCoords[this.stage.penCoordIndex] = ox;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = oy;
+      this.stage.penCoordIndex++;
+      
+      //second vertex description
+      this.stage.penLines[this.stage.penLineIndex] = -Math.PI/2;
+      this.stage.penLineIndex++;
+      this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+      this.stage.penLineIndex++;      
+      
+			
+			
+      // third coordinates
+      this.stage.penCoords[this.stage.penCoordIndex] = x;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = y;
+      this.stage.penCoordIndex++;
+
+      // third coordinates supplement
+      this.stage.penCoords[this.stage.penCoordIndex] = ox;
+      this.stage.penCoordIndex++;
+      this.stage.penCoords[this.stage.penCoordIndex] = oy;
+      this.stage.penCoordIndex++;
+
+      //second vertex description
+      this.stage.penLines[this.stage.penLineIndex] = Math.PI/2;
+      this.stage.penLineIndex++;
+      this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+      this.stage.penLineIndex++;      
+      }
+      
+     
+
+      
+      for(var i = 0; i < circleRes; i++){
+        
+        
+        // first endcap
+        // first coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;
+
+        // first coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = ox;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = oy;
+        this.stage.penCoordIndex++;      
+
+        // first vertex description
+        this.stage.penLines[this.stage.penLineIndex] = 0;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = 0;
+        this.stage.penLineIndex++;       
+
+        
+        
+         // second coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;
+
+        // second coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = ox;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = oy;
+        this.stage.penCoordIndex++;      
+
+        // second vertex description
+        this.stage.penLines[this.stage.penLineIndex] = Math.PI/2 + i / circleRes * Math.PI;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+        this.stage.penLineIndex++; 
+        
+        
+        
+         // third coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;
+
+        // third coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = ox;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = oy;
+        this.stage.penCoordIndex++;      
+
+        // third vertex description
+        this.stage.penLines[this.stage.penLineIndex] = Math.PI/2 + (i+1) / circleRes * Math.PI;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+        this.stage.penLineIndex++;     
+        
+        
+        
+        
+        // second endcap
+        // first coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = ox;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = oy;
+        this.stage.penCoordIndex++;
+
+        // first coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;      
+
+        // first vertex description
+        this.stage.penLines[this.stage.penLineIndex] = 0;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = 0;
+        this.stage.penLineIndex++;       
+
+        
+        
+         // second coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = ox;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = oy;
+        this.stage.penCoordIndex++;
+
+        // second coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;      
+
+        // second vertex description
+        this.stage.penLines[this.stage.penLineIndex] = Math.PI/2 + i / circleRes * Math.PI;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+        this.stage.penLineIndex++; 
+        
+        
+        
+         // third coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = ox;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = oy;
+        this.stage.penCoordIndex++;
+
+        // third coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;      
+
+        // third vertex description
+        this.stage.penLines[this.stage.penLineIndex] = Math.PI/2 + (i+1) / circleRes * Math.PI;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+        this.stage.penLineIndex++;         
+      }
+     
+     
+     
+      
+      // set color of vertices
+      for(var i = 0; i < circleRes * 6 + 6; i++){
+        this.stage.penColors[this.stage.penColorIndex] = r;
+        this.stage.penColorIndex++;
+        this.stage.penColors[this.stage.penColorIndex] = g;
+        this.stage.penColorIndex++;
+        this.stage.penColors[this.stage.penColorIndex] = b;
+        this.stage.penColorIndex++;
+        this.stage.penColors[this.stage.penColorIndex] = a;
+        this.stage.penColorIndex++;
+      }
+      
+      
+      this.penState = true;
     }
     if (this.saying) {
       this.updateBubble();
@@ -2157,41 +3073,285 @@ var P = (function() {
     var context = this.stage.penContext;
     var x = this.scratchX;
     var y = this.scratchY;
-    context.fillStyle = this.penCSS || 'hsl(' + this.penHue + ',' + this.penSaturation + '%,' + (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness) + '%)';
+    /*
+    context.fillStyle = this.penRGBA || 'hsl(' + this.penHue + ',' + this.penSaturation + '%,' + (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness) + '%)';
+
+    if(this.penSize <= 2 * 480 / this.stage.penCanvas.width){
+      context.fillRect(240 + x - this.penSize, 180 - y, this.penSize, this.penSize);
+    }
+    else{
     context.beginPath();
-    context.arc(240 + x, 180 - y, this.penSize / 2, 0, 2 * Math.PI, false);
-    context.fill();
+      context.arc(240 + x, 180 - y, Math.floor(this.penSize / 2), 0, 2 * Math.PI, false);
+      context.fill();
+    }
+    */
+ 
+    //if(this.penSize > 2 * 480 / this.stage.penCanvas.width){
+     
+      //calculate color for vertices
+      var r, g, b, a;
+      if(this.penRGBA){
+        r = this.penRed;
+        g = this.penGreen;
+        b = this.penBlue;
+        a = this.penAlpha;
+      }
+      else{
+        var rgb = this.hsl2rgb(this.penHue, this.penSaturation, (this.penLightness > 100 ? 200 - this.penLightness : this.penLightness));
+        r = rgb[0];
+        g = rgb[1];
+        b = rgb[2];
+        a = 1;
+      }
+   
+      var circleRes = Math.max(Math.ceil(this.penSize * Math.max(this.stage.zoomX, this.stage.zoomY)), 3);
+      
+			// Redraw when array is full.
+			if(this.stage.penCoordIndex + 12 * circleRes > this.stage.penCoords.length){
+				this.stage.renderPen(this.stage.penContext, this.stage.penContext.penShaderInfo, this.stage.penContext.penBuffers);
+				this.stage.penCoordIndex = 0;
+				this.stage.penLineIndex  = 0;
+				this.stage.penColorIndex = 0;
+			}
+			
+      for(var i = 0; i < circleRes; i++){
+        // first endcap
+        // first coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;
+
+        // first coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;      
+
+        // first vertex description
+        this.stage.penLines[this.stage.penLineIndex] = 0;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = 0;
+        this.stage.penLineIndex++;       
+
+        
+        
+         // second coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;
+
+        // second coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = x+1;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y+1;
+        this.stage.penCoordIndex++;      
+
+        // second vertex description
+        this.stage.penLines[this.stage.penLineIndex] = Math.PI/2 + i / circleRes * 2 * Math.PI;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+        this.stage.penLineIndex++; 
+        
+        
+        
+         // third coordinates
+        this.stage.penCoords[this.stage.penCoordIndex] = x;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y;
+        this.stage.penCoordIndex++;
+
+        // third coordinates supplement
+        this.stage.penCoords[this.stage.penCoordIndex] = x+1;
+        this.stage.penCoordIndex++;
+        this.stage.penCoords[this.stage.penCoordIndex] = y+1;
+        this.stage.penCoordIndex++;      
+
+        // third vertex description
+        this.stage.penLines[this.stage.penLineIndex] = Math.PI/2 + (i+1) / circleRes * 2 * Math.PI;
+        this.stage.penLineIndex++;
+        this.stage.penLines[this.stage.penLineIndex] = this.penSize/2;
+        this.stage.penLineIndex++;           
+      }    
+      
+      // set color of vertices
+      for(var i = 0; i < circleRes * 3; i++){
+        this.stage.penColors[this.stage.penColorIndex] = r;
+        this.stage.penColorIndex++;
+        this.stage.penColors[this.stage.penColorIndex] = g;
+        this.stage.penColorIndex++;
+        this.stage.penColors[this.stage.penColorIndex] = b;
+        this.stage.penColorIndex++;
+        this.stage.penColors[this.stage.penColorIndex] = a;
+        this.stage.penColorIndex++;
+      }
+    
+    //}
   };
+  
+  Sprite.prototype.hsl2rgb = function(h, s, l){
+    var r, g, b;
+    
+    h = (h % 360) / 360;
+    s = s / 100;
+    l = (l - 10) / 100;
+    
+    if(s == 0){
+        r = g = b = l; // achromatic
+    }else{
+        var hue2rgb = function hue2rgb(p, q, t){
+            if(t < 0) t += 1;
+            if(t > 1) t -= 1;
+            if(t < 1/6) return p + (q - p) * 6 * t;
+            if(t < 1/2) return q;
+            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        }
+
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    return [Math.min(Math.floor(r * 256), 255), Math.min(Math.floor(g * 256), 255), Math.min(Math.floor(b * 256), 255)];
+  }
 
   Sprite.prototype.draw = function(context, noEffects) {
+    
+		if(this.stage.penCoordIndex){
+      this.stage.renderPen(this.stage.penContext, this.stage.penContext.penShaderInfo, this.stage.penContext.penBuffers);
+      this.stage.penCoordIndex = 0;
+      this.stage.penLineIndex  = 0;
+      this.stage.penColorIndex = 0;
+		}		
+		
     var costume = this.costumes[this.currentCostumeIndex];
-
+    
     if (this.isDragging) {
       this.moveTo(this.dragOffsetX + this.stage.mouseX, this.dragOffsetY + this.stage.mouseY);
     }
+    
+    
+    if (costume && costume.image.imgInfo) {
 
-    if (costume) {
-      context.save();
-
-      var z = this.stage.zoom * SCALE;
-      context.translate(((this.scratchX + 240) * z | 0) / z, ((180 - this.scratchY) * z | 0) / z);
-      if (this.rotationStyle === 'normal') {
-        context.rotate((this.direction - 90) * Math.PI / 180);
-      } else if (this.rotationStyle === 'leftRight' && this.direction < 0) {
-        context.scale(-1, 1);
+      var z = Math.max(this.stage.zoomX, this.stage.zoomY);
+      
+      var tempTest
+			
+      if(costume.resScale < Math.min(this.scale * SCALE * z, 8) && costume.isSvg){
+        if(costume.image.imgInfo){
+          this.stage.context.deleteTexture(costume.image.imgInfo.texture);
+          costume.image.imgInfo = null;
+        }
+        if(costume.image.penImgInfo){
+          this.stage.penContext.deleteTexture(costume.image.penImgInfo.texture);
+          costume.image.penImgInfo = null;
+        }
+        if(costume.image.collisionImgInfo){
+          this.stage.glCollisionContext.deleteTexture(costume.image.collisionImgInfo.texture);
+          costume.image.collisionImgInfo = null;
+        }        
+        
+        costume.resScale = Math.min(Math.ceil(this.scale * SCALE * z), 8);
+        
+        console.log('scaling: ' + costume.resScale);
+        
+        costume.render();
       }
-      context.scale(this.scale, this.scale);
-      context.scale(costume.scale, costume.scale);
-      context.translate(-costume.rotationCenterX, -costume.rotationCenterY);
-
-      if (!noEffects) context.globalAlpha = Math.max(0, Math.min(1, 1 - this.filters.ghost / 100));
-
-      context.drawImage(costume.image, 0, 0);
-
-      context.restore();
+      
+      
+      var imgInfo;      
+      if(context.canvas.id === 'canvas')
+        imgInfo = costume.image.imgInfo;
+      else if(context.canvas.id === 'penCanvas')
+        imgInfo = costume.image.penImgInfo;
+      else
+        imgInfo = costume.image.collisionImgInfo;
+      
+      var color = -this.filters.color / 100 * Math.PI;
+      var fisheye = this.filters.fisheye < -100 ? 0 : -this.filters.fisheye / 100 - 1;
+      var whirl = -this.filters.whirl / 100 * Math.PI;
+      var pixelate = Math.pow(Math.abs(this.filters.pixelate * costume.scale * this.scale), 0.6) + 1;
+      var mosaic = Math.floor(Math.abs((this.filters.mosaic + 5) / 10)) + 1;
+	  
+	  if(this.filters.brightness > 100){
+		  
+		  this.filters.brightness = 100;
+	  }
+	  
+      var brightness = this.filters.brightness / 100;
+	  
+      var ghost = noEffects ? 1 : Math.max(0, Math.min(1, 1 - this.filters.ghost / 100));
+		
+      glDrawImage(
+        context,
+        context.useTouchingShader ? context.touchingShaderInfo : context.imgShaderInfo,
+        context.imgBuffers,
+        imgInfo,
+        this.scratchX + (imgInfo.width / costume.resScale / 2 - costume.rotationCenterX) * this.scale * costume.scale * (this.rotationStyle === 'leftRight' && this.direction < 0 ? -1 : 1),
+        this.scratchY + (-imgInfo.height / costume.resScale / 2 + costume.rotationCenterY) * this.scale * costume.scale,
+        imgInfo.width/costume.resScale * costume.scale * this.scale * (this.rotationStyle === 'leftRight' && this.direction < 0 ? -1 : 1),
+        imgInfo.height/costume.resScale * costume.scale * this.scale,
+        this.rotationStyle === 'normal' ? - this.direction + 90 : 0,
+        (-imgInfo.width / costume.resScale / 2 + costume.rotationCenterX) * this.scale * costume.scale * (this.rotationStyle === 'leftRight' && this.direction < 0 ? -1 : 1),
+        (imgInfo.height / costume.resScale / 2 - costume.rotationCenterY) * this.scale * costume.scale,
+        [color, fisheye, whirl, pixelate, mosaic, brightness, ghost],
+        this.stage.tColor);
     }
+	
+	
+	
   };
 
+	function hsvToRgb(h, s, v) {
+  var r, g, b;
+
+  var i = Math.floor(h * 6);
+  var f = h * 6 - i;
+  var p = v * (1 - s);
+  var q = v * (1 - f * s);
+  var t = v * (1 - (1 - f) * s);
+
+  switch (i % 6) {
+    case 0: r = v, g = t, b = p; break;
+    case 1: r = q, g = v, b = p; break;
+    case 2: r = p, g = v, b = t; break;
+    case 3: r = p, g = q, b = v; break;
+    case 4: r = t, g = p, b = v; break;
+    case 5: r = v, g = p, b = q; break;
+  }
+
+  return {r: r * 255,g: g * 255,b: b * 255 };
+  }
+
+	function rgbToHsv(r, g, b) {
+  r /= 255, g /= 255, b /= 255;
+
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var h, s, v = max;
+
+  var d = max - min;
+  s = max == 0 ? 0 : d / max;
+
+  if (max == min) {
+    h = 0; // achromatic
+  } else {
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+
+    h /= 6;
+  }
+
+  return {	 h: h,
+			s: s,
+			v: v };
+  }
+	
   Sprite.prototype.setDirection = function(degrees) {
     var d = degrees % 360;
     if (d > 180) d -= 360;
@@ -2200,10 +3360,102 @@ var P = (function() {
     if (this.saying) this.updateBubble();
   };
 
+  
+  //folgender code ist nur provisorisch hier		
+	 Sprite.prototype.sayOLD = function(text, thinking) {		
+	    text = '' + text;		
+	    if (!text) {		
+	      this.saying = false;		
+	      if (!this.bubble) return;		
+	      this.bubble.style.display = 'none';		
+	      return ++this.sayId;		
+	    }		
+	    this.saying = true;		
+	    this.thinking = thinking;		
+	    if (!this.bubble) {		
+	      this.bubble = document.createElement('div');		
+	      this.bubble.style.zIndex = '1'; // pf say over lists fix		
+	      this.bubble.style.maxWidth = ''+(127/14)+'em';		
+	      this.bubble.style.minWidth = ''+(48/14)+'em';		
+	      this.bubble.style.padding = ''+(8/14)+'em '+(10/14)+'em';		
+	      this.bubble.style.border = ''+(3/14)+'em solid rgb(160, 160, 160)';		
+	      this.bubble.style.borderRadius = ''+(10/14)+'em';		
+	      this.bubble.style.background = '#fff';		
+	      this.bubble.style.position = 'absolute';		
+	      this.bubble.style.font = 'bold 14em sans-serif';		
+	      this.bubble.style.whiteSpace = 'pre-wrap';		
+	      this.bubble.style.wordWrap = 'break-word';		
+		  this.bubble.style.textAlign = 'center';		
+		  this.bubble.style.cursor = 'default';		
+	      this.bubble.appendChild(this.bubbleText = document.createTextNode(''));		
+	      this.bubble.appendChild(this.bubblePointer = document.createElement('div'));		
+	      this.bubblePointer.style.position = 'absolute';		
+	      this.bubblePointer.style.height = ''+(21/14)+'em';		
+	      this.bubblePointer.style.width = ''+(44/14)+'em';		
+	      this.bubblePointer.style.background = 'url(icons.svg) '+(-195/14)+'em '+(-4/14)+'em';		
+	      this.bubblePointer.style.backgroundSize = ''+(320/14)+'em '+(96/14)+'em';		
+	      this.stage.root.appendChild(this.bubble);		
+	    } else { // tjvr		
+	      this.stage.root.removeChild(this.bubble); 		
+	      this.stage.root.appendChild(this.bubble);		
+	    }		
+	    this.bubblePointer.style.backgroundPositionX = ((thinking ? -259 : -195)/14)+'em';		
+	    this.bubble.style.display = 'block';		
+	    this.bubbleText.nodeValue = text;		
+	    this.updateBubble();		
+	    return ++this.sayId;		
+	  };		
+			
+	  Base.prototype.say = function(text, thinking) { // moved to base	3117.	  
+	    text = '' + text;		
+	    if (!text) {		
+	      this.saying = false;		
+	      if (!this.bubble) return;		
+	      this.bubble.style.display = 'none';		
+	      return ++this.sayId;		
+	    }this.saying = true;		
+	    this.thinking = thinking;		
+	    if (!this.bubble) {		
+	      this.bubble = document.createElement('div');		
+	      this.bubble.style.zIndex = '1'; // pf say over lists fix		
+	      this.bubble.style.maxWidth = ''+(127/14)+'em';		
+	      this.bubble.style.minWidth = ''+(48/14)+'em';		
+	      this.bubble.style.padding = ''+(8/14)+'em '+(10/14)+'em';		
+	      this.bubble.style.border = ''+(3/14)+'em solid rgb(160, 160, 160)';		
+	      this.bubble.style.borderRadius = ''+(10/14)+'em';		
+	      this.bubble.style.background = '#fff';		
+	      this.bubble.style.position = 'absolute';		
+	      this.bubble.style.font = 'bold 14em sans-serif';		
+	      this.bubble.style.whiteSpace = 'pre-wrap';		
+	      this.bubble.style.wordWrap = 'break-word';		
+	      this.bubble.style.textAlign = 'center';		
+	      this.bubble.style.cursor = 'default';		
+	      this.bubble.appendChild(this.bubbleText = document.createTextNode(''));		
+	      this.bubble.appendChild(this.bubblePointer = document.createElement('div'));		
+	      this.bubblePointer.style.position = 'absolute';		
+	      this.bubblePointer.style.height = ''+(21/14)+'em';		
+	      this.bubblePointer.style.width = ''+(44/14)+'em';		
+	      this.bubblePointer.style.background = 'url(icons.svg) '+(-195/14)+'em '+(-4/14)+'em';		
+	      this.bubblePointer.style.backgroundSize = ''+(320/14)+'em '+(96/14)+'em';		
+	      this.stage.root.appendChild(this.bubble);		
+	    } else { // tjvr		
+	      this.stage.root.removeChild(this.bubble); 		
+	      this.stage.root.appendChild(this.bubble);		
+	    }		
+	    this.bubblePointer.style.backgroundPositionX = ((thinking ? -259 : -195)/14)+'em';		
+	    this.bubble.style.display = 'block';		
+	    this.bubbleText.nodeValue = text;		
+	    this.updateBubble();		
+	    return ++this.sayId;		
+	  };		
+  
+  
+  
+  //Context for collision math
   var collisionCanvas = document.createElement('canvas');
   var collisionContext = collisionCanvas.getContext('2d');
-
-  Sprite.prototype.touching = function(thing) {
+  
+  Sprite.prototype.touching = function(thing) {    
     var costume = this.costumes[this.currentCostumeIndex];
 
     if (thing === '_mouse_') {
@@ -2224,7 +3476,29 @@ var P = (function() {
       } else if (this.rotationStyle === 'leftRight' && this.direction < 0) {
         cx = -cx
       }
-      var d = costume.context.getImageData(cx * costume.bitmapResolution + costume.rotationCenterX, cy * costume.bitmapResolution + costume.rotationCenterY, 1, 1).data;
+      
+      //var d = costume.context.getImageData(cx * costume.resScale * costume.bitmapResolution + costume.rotationCenterX * costume.resScale, cy * costume.resScale * costume.bitmapResolution + costume.rotationCenterY * costume.resScale, 1, 1).data;
+      
+      this.stage.glCollisionContext.scissor(this.stage.rawMouseX + 240, this.stage.rawMouseY + 179, 1, 1);
+      
+      this.stage.glCollisionContext.clear(this.stage.glCollisionContext.COLOR_BUFFER_BIT);
+      this.stage.glCollisionContext.useTouchingShader = false;
+      this.draw(this.stage.glCollisionContext, true);
+      
+      var d = new Uint8Array(4);
+      
+      
+      this.stage.glCollisionContext.readPixels(
+        this.stage.rawMouseX + 240,
+        this.stage.rawMouseY + 179,
+        1,
+        1,
+        this.stage.glCollisionContext.RGBA,
+        this.stage.glCollisionContext.UNSIGNED_BYTE,
+        d);
+        
+      this.stage.glCollisionContext.scissor(0, 0, 480, 360);
+      
       return d[3] !== 0;
     } else if (thing === '_edge_') {
       var bounds = this.rotatedBounds();
@@ -2235,36 +3509,65 @@ var P = (function() {
       for (var i = sprites.length; i--;) {
         var sprite = sprites[i];
         if (!sprite.visible) continue;
-
+		
+		
+		
         var mb = this.rotatedBounds();
         var ob = sprite.rotatedBounds();
-
+		//console.log(sprite);
         if (mb.bottom >= ob.top || ob.bottom >= mb.top || mb.left >= ob.right || ob.left >= mb.right) {
           continue;
         }
-
+        
         var left = Math.max(mb.left, ob.left);
         var top = Math.min(mb.top, ob.top);
         var right = Math.min(mb.right, ob.right);
         var bottom = Math.max(mb.bottom, ob.bottom);
 
-        collisionCanvas.width = right - left;
-        collisionCanvas.height = top - bottom;
+        collisionCanvas.width = Math.max(right - left, 1);
+        collisionCanvas.height = Math.max(top - bottom, 1);
 
         collisionContext.save();
         collisionContext.translate(-(left + 240), -(180 - top));
 
-        this.draw(collisionContext, true);
-        collisionContext.globalCompositeOperation = 'source-in';
-        sprite.draw(collisionContext, true);
+        //this.draw(collisionContext, true);
+        //collisionContext.globalCompositeOperation = 'source-in';
+        //sprite.draw(collisionContext, true);      
+        
+        this.stage.glCollisionContext.scissor(240 + left, 180 + bottom, Math.max(right - left, 1), Math.max(top - bottom, 1));
+        
+        this.stage.glCollisionContext.clear(this.stage.glCollisionContext.COLOR_BUFFER_BIT);
+        this.stage.glCollisionContext.useTouchingShader = false;
+        this.draw(this.stage.glCollisionContext, true);
+        
+        this.stage.glCollisionContext.touchingShaderInfo.blendSource = this.stage.glCollisionContext.DST_ALPHA;
+        this.stage.glCollisionContext.touchingShaderInfo.blendDest = this.stage.glCollisionContext.ZERO;    
+        this.stage.tColor = [0.0, 0.0, 0.0, 0.0]     
+        this.stage.glCollisionContext.useTouchingShader = true;
+        sprite.draw(this.stage.glCollisionContext, true);
+        
+        //collisionContext.restore();
 
-        collisionContext.restore();
+        //var data = collisionContext.getImageData(0, 0, Math.max(right - left, 1), Math.max(top - bottom, 1)).data;
 
-        var data = collisionContext.getImageData(0, 0, right - left, top - bottom).data;
-
-        var length = (right - left) * (top - bottom) * 4;
+        costume = sprite.costumes[sprite.currentCostumeIndex];
+        
+        var data = new Uint8Array(Math.max(right - left, 1) * Math.max(top - bottom, 1) * 4);
+        this.stage.glCollisionContext.readPixels(
+          240 + left,
+          180 + bottom,
+          Math.max(right - left, 1),
+          Math.max(top - bottom, 1),
+          this.stage.glCollisionContext.RGBA,
+          this.stage.glCollisionContext.UNSIGNED_BYTE,
+          data);
+       
+       this.stage.glCollisionContext.scissor(0, 0, 480, 360);
+       
+        var length = data.length;
         for (var j = 0; j < length; j += 4) {
           if (data[j + 3]) {
+			 
             return true;
           }
         }
@@ -2273,32 +3576,139 @@ var P = (function() {
     }
   };
 
-  Sprite.prototype.touchingColor = function(rgb) {
+  Sprite.prototype.touchingColor = function(rgb) {    
     var b = this.rotatedBounds();
-    collisionCanvas.width = b.right - b.left;
-    collisionCanvas.height = b.top - b.bottom;
+    //collisionCanvas.width = Math.ceil(b.right - b.left);
+    //collisionCanvas.height = Math.ceil(b.top - b.bottom);
 
-    collisionContext.save();
-    collisionContext.translate(-(240 + b.left), -(180 - b.top));
-
+    //collisionContext.save();
+    //collisionContext.translate(-(240 + b.left), -(180 - b.top));
+    
+    /*
     this.stage.drawAllOn(collisionContext, this);
     collisionContext.globalCompositeOperation = 'destination-in';
     this.draw(collisionContext, true);
+    */    
+    
 
-    collisionContext.restore();
+    
+    //set context to size of sprite:
+    //this.stage.glCollisionCanvas.width = Math.ceil(b.right - b.left);
+    //this.stage.glCollisionCanvas.height = Math.ceil(b.top - b.bottom);
+    //this.stage.glCollisionCanvas.collisionMode = b;
+    
+    this.stage.glCollisionContext.scissor(240 + b.left, 180 + b.bottom, Math.ceil(b.right) - Math.floor(b.left), Math.ceil(b.top) - Math.floor(b.bottom));
+    
+    this.stage.glCollisionContext.clear(this.stage.glCollisionContext.COLOR_BUFFER_BIT);
+    this.stage.glCollisionContext.useTouchingShader = false;
+    this.stage.drawAllOn(this.stage.glCollisionContext, this);
 
-    var data = collisionContext.getImageData(0, 0, b.right - b.left, b.top - b.bottom).data;
+    
+    this.stage.glCollisionContext.touchingShaderInfo.blendSource = this.stage.glCollisionContext.ZERO;
+    this.stage.glCollisionContext.touchingShaderInfo.blendDest = this.stage.glCollisionContext.SRC_COLOR;
+    this.stage.tColor = [0.0, 0.0, 0.0, 0.0]    
+    this.stage.glCollisionContext.useTouchingShader = true;
+    this.draw(this.stage.glCollisionContext, true);
+ 
 
-    rgb = rgb & 0xffffff;
-    var length = (b.right - b.left) * (b.top - b.bottom) * 4;
+
+
+ 
+    //collisionContext.restore();
+
+    /*
+    var width  = collisionCanvas.width;
+    var height = collisionCanvas.height;
+    
+    if(width <= 0){
+      width=1;
+    }
+    if(height <= 0){
+      height=1;
+    }
+	  */
+  
+    //var data = collisionContext.getImageData(0, 0, width, height).data;
+    
+    //b.right = Math.min(b.right, 240);
+
+    var tempTest = performance.now(); 
+ 
+    var data = new Uint8Array((Math.ceil(b.right) - Math.floor(b.left)) * (Math.ceil(b.top) - Math.floor(b.bottom)) * 4);
+    
+    this.stage.glCollisionContext.finish();
+    this.stage.glCollisionContext.readPixels(
+      240 + b.left,
+      180 + b.bottom,
+      Math.ceil(b.right) - Math.floor(b.left),
+      Math.ceil(b.top) - Math.floor(b.bottom),
+      this.stage.glCollisionContext.RGBA,
+      this.stage.glCollisionContext.UNSIGNED_BYTE,
+      data);
+      
+    this.stage.glCollisionContext.scissor(0, 0, 480, 360);
+ 
+    //console.log(performance.now() - tempTest);  
+    
+    //rgb = rgb & 0xffffff;
+    var length = data.length;//Math.ceil(b.right - b.left) * Math.ceil(b.top - b.bottom) * 4;   
     for (var i = 0; i < length; i += 4) {
-      if ((data[i] << 16 | data[i + 1] << 8 | data[i + 2]) === rgb && data[i + 3]) {
+      if(((data[i] << 16 | data[i + 1] << 8 | data[i + 2]) & 0xf8f8f0) === (rgb & 0xf8f8f0) && (data[i + 3] === 0xff)){
         return true;
       }
     }
-
     return false;
   };
+  
+  Sprite.prototype.colorTouchingColor = function(rgb1, rgb2, first) {
+    var b = this.rotatedBounds();
+ 
+     this.stage.glCollisionContext.scissor(240 + b.left, 180 + b.bottom, Math.ceil(b.right) - Math.floor(b.left), Math.ceil(b.top) - Math.floor(b.bottom));
+ 
+    this.stage.glCollisionContext.clear(this.stage.glCollisionContext.COLOR_BUFFER_BIT);
+    this.stage.glCollisionContext.useTouchingShader = false;
+    this.stage.drawAllOn(this.stage.glCollisionContext, this);  
+    
+    this.stage.glCollisionContext.touchingShaderInfo.blendSource = this.stage.glCollisionContext.ZERO;
+    this.stage.glCollisionContext.touchingShaderInfo.blendDest = this.stage.glCollisionContext.SRC_COLOR;
+    this.stage.tColor = [((rgb1 & 0xff0000) >> 16) / 255, ((rgb1 & 0x00ff00) >> 8) / 255, (rgb1 & 0x0000ff) / 255, 1.0];   
+    this.stage.glCollisionContext.useTouchingShader = true;
+    this.draw(this.stage.glCollisionContext, true);
+    
+    b.right = Math.min(b.right, 240);
+    
+    var data = new Uint8Array(Math.ceil(b.right - b.left) * Math.ceil(b.top - b.bottom) * 4);
+    this.stage.glCollisionContext.finish();    
+    this.stage.glCollisionContext.readPixels(
+      240 + b.left,
+      180 + b.bottom,
+      b.right - b.left,
+      b.top - b.bottom,
+      this.stage.glCollisionContext.RGBA,
+      this.stage.glCollisionContext.UNSIGNED_BYTE,
+      data);
+ 
+    this.stage.glCollisionContext.scissor(0, 0, 480, 360);
+ 
+    //rgb = rgb & 0xffffff;
+    var length = Math.ceil(b.right - b.left) * Math.ceil(b.top - b.bottom) * 4;   
+    for (var i = 0; i < length; i += 4) {
+      //if(Math.abs(data[i    ] - data[i + 1]) <= 4 &&
+      //   Math.abs(data[i    ] - data[i + 2]) <= 4 &&
+      //   Math.abs(data[i + 1] - data[i + 2]) <= 4){
+      //  if(data[i + 2] === (rgb2 & 0x0000ff) && data[i + 3]){
+      //    return true;
+      //  }
+      //}
+      //else{
+        if(((data[i] << 16 | data[i + 1] << 8 | data[i + 2]) & 0xf8f8f0) === (rgb2 & 0xf8f8f0) && data[i + 3]){
+          return true;
+        }
+      //}
+    }
+    
+    return false;    
+  }
 
   Sprite.prototype.bounceOffEdge = function() {
     var b = this.rotatedBounds();
@@ -2339,13 +3749,13 @@ var P = (function() {
     var s = costume.scale * this.scale;
     var left = -costume.rotationCenterX * s;
     var top = costume.rotationCenterY * s;
-    var right = left + costume.image.width * s;
-    var bottom = top - costume.image.height * s;
+    var right = left + costume.image.width * s / costume.resScale;
+    var bottom = top - costume.image.height * s / costume.resScale;
 
     if (this.rotationStyle !== 'normal') {
       if (this.rotationStyle === 'leftRight' && this.direction < 0) {
         right = -left;
-        left = right - costume.image.width * costume.scale * this.scale;
+        left = right - costume.image.width * costume.scale * this.scale / costume.resScale;
       }
       return {
         left: this.scratchX + left,
@@ -2396,7 +3806,7 @@ var P = (function() {
       var y = this.stage.mouseY;
     } else {
       var sprite = this.stage.getObject(thing);
-      if (!sprite) return 10000;
+      if (!sprite) return 0;
       x = sprite.scratchX;
       y = sprite.scratchY;
     }
@@ -2457,7 +3867,6 @@ var P = (function() {
       this.bubble.style.wordWrap = 'break-word';
       this.bubble.style.textAlign = 'center';
       this.bubble.style.cursor = 'default';
-      this.bubble.style.pointerEvents = 'auto';
       this.bubble.appendChild(this.bubbleText = document.createTextNode(''));
       this.bubble.appendChild(this.bubblePointer = document.createElement('div'));
       this.bubblePointer.style.position = 'absolute';
@@ -2465,7 +3874,7 @@ var P = (function() {
       this.bubblePointer.style.width = ''+(44/14)+'em';
       this.bubblePointer.style.background = 'url(icons.svg) '+(-195/14)+'em '+(-4/14)+'em';
       this.bubblePointer.style.backgroundSize = ''+(320/14)+'em '+(96/14)+'em';
-      this.stage.ui.appendChild(this.bubble);
+      this.stage.root.appendChild(this.bubble);
     }
     this.bubblePointer.style.backgroundPositionX = ((thinking ? -259 : -195)/14)+'em';
     this.bubble.style.display = 'block';
@@ -2475,18 +3884,37 @@ var P = (function() {
   };
 
   Sprite.prototype.updateBubble = function() {
+	  
+	//var bWidth = this.bubble.offsetWidth;
+	//var bHeight = Math.max(this.stage.zoomX, this.stage.zoomY * 0.75);
+	  
     if (!this.visible || !this.saying) {
       this.bubble.style.display = 'none';
       return;
     }
     var b = this.rotatedBounds();
+	var z = Math.max(this.stage.zoomX, this.stage.zoomY);
+    var width = this.bubble.offsetWidth / z;
+    var height = this.bubble.offsetHeight / z;
+	
+	var stageTop;
+	var stageRight;
+	if(this.stage.zoomX <= this.stage.zoomY){
+		stageTop = 360;
+		stageRight = 480 * this.stage.zoomX / this.stage.zoomY;		
+	}
+	else{
+		stageTop = 360 * this.stage.zoomY / this.stage.zoomX;
+		stageRight = 480;
+	}
+	
     var left = 240 + b.right;
-    var bottom = 180 + b.top;
-    var width = this.bubble.offsetWidth / this.stage.zoom;
-    var height = this.bubble.offsetHeight / this.stage.zoom;
+	var bottom = stageTop - 180 + b.top;
+
+	
     this.bubblePointer.style.top = ((height - 6) / 14) + 'em';
-    if (left + width + 2 > 480) {
-      this.bubble.style.right = ((240 - b.left) / 14) + 'em';
+    if (left + width + 2 > stageRight) {
+      this.bubble.style.right = ((stageRight - 240 - b.left) / 14) + 'em';
       this.bubble.style.left = 'auto';
       this.bubblePointer.style.right = (3/14)+'em';
       this.bubblePointer.style.left = 'auto';
@@ -2498,8 +3926,8 @@ var P = (function() {
       this.bubblePointer.style.right = 'auto';
       this.bubblePointer.style.backgroundPositionY = (-4/14)+'em';
     }
-    if (bottom + height + 2 > 360) {
-      bottom = 360 - height - 2;
+    if (bottom + height + 2 > stageTop) {
+      bottom = stageTop - height - 2;
     }
     if (bottom < 19) {
       bottom = 19;
@@ -2509,7 +3937,7 @@ var P = (function() {
 
   Sprite.prototype.remove = function() {
     if (this.bubble) {
-      this.stage.ui.removeChild(this.bubble);
+      this.stage.root.removeChild(this.bubble);
       this.bubble = null;
     }
     if (this.node) {
@@ -2519,20 +3947,26 @@ var P = (function() {
   };
 
   var Costume = function(data, index, base) {
+    
     this.index = index;
     this.base = base;
     this.baseLayerID = data.baseLayerID;
     this.baseLayerMD5 = data.baseLayerMD5;
-    this.baseLayer = data.$image;
+    this.baseLayer = data.$image ? data.$image : new Image(0, 0);
     this.bitmapResolution = data.bitmapResolution || 1;
     this.scale = 1 / this.bitmapResolution;
     this.costumeName = data.costumeName;
     this.rotationCenterX = data.rotationCenterX;
     this.rotationCenterY = data.rotationCenterY;
     this.textLayer = data.$text;
-
-    this.image = document.createElement('canvas');
-    this.context = this.image.getContext('2d');
+    //Increases dynamically as needed.
+    this.resScale = 1;
+		
+		//Is this an svg, i.e. does it need to be rescaled for good resolution?
+		this.isSvg = this.baseLayerMD5.split('.')[1] === 'svg';
+    
+    //this.image = document.createElement('canvas');
+    //this.context = this.image.getContext('2d');
 
     this.render();
     this.baseLayer.onload = function() {
@@ -2545,21 +3979,42 @@ var P = (function() {
   addEvents(Costume, 'load');
 
   Costume.prototype.render = function() {
+    this.image = document.createElement('canvas');
+    this.context = this.image.getContext('2d');
+    
     if (!this.baseLayer.width || this.textLayer && !this.textLayer.width) {
       return;
     }
-    this.image.width = this.baseLayer.width;
-    this.image.height = this.baseLayer.height;
-
-    this.context.drawImage(this.baseLayer, 0, 0);
+    this.image.width = this.baseLayer.width*this.resScale;
+    this.image.height = this.baseLayer.height*this.resScale;
+    
+    this.context.imageSmoothingEnabled = false;
+    this.context.msImageSmoothingEnabled = false;
+    
+    this.context.drawImage(this.baseLayer, 0, 0, this.image.width, this.image.height);
     if (this.textLayer) {
-      this.context.drawImage(this.textLayer, 0, 0);
+		
+      this.context.drawImage(this.textLayer, 0, 0, this.image.width, this.image.height);
     }
-    if (this.base.isStage && this.index == this.base.currentCostumeIndex) {
+    if (this.base.isStage && this.index == this.base.currentCostumeIndex) {      
       setTimeout(function() {
         this.base.updateBackdrop();
       }.bind(this));
     }
+    
+    //console.log('making texture');
+    if(this.base.isStage){
+      this.image.imgInfo = glMakeTexture(this.base.stage.backdropContext, this.image);
+    }
+    else{
+      this.image.imgInfo = glMakeTexture(this.base.stage.context, this.image);
+      this.image.penImgInfo = glMakeTexture(this.base.stage.penContext, this.image);
+    }
+    this.image.collisionImgInfo = glMakeTexture(this.base.stage.glCollisionContext, this.image);    
+    
+    //destroy context and canvas after rendering.
+    this.context = null;
+    this.image.remove();
   };
 
   var Sound = function(data) {
@@ -2583,12 +4038,6 @@ var P = (function() {
     this.visible = true;
     this.x = 0;
     this.y = 0;
-
-    this.el = null;
-    this.labelEl = null;
-    this.readout = null;
-    this.slider = null;
-    this.button = null;
   };
 
   Watcher.prototype.fromJSON = function(data) {
@@ -2620,7 +4069,6 @@ var P = (function() {
       this.label = this.getLabel();
       if (this.target.isSprite) this.label = this.target.objName + ': ' + this.label;
     }
-    this.layout();
   };
 
   var WATCHER_LABELS = {
@@ -2651,8 +4099,24 @@ var P = (function() {
     }
     return WATCHER_LABELS[this.cmd] || '';
   };
+  
+  
+ 
 
-  Watcher.prototype.update = function(context) {
+  Watcher.prototype.draw = function(destContext) {    
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    
+    var z = Math.min(this.stage.zoomX, this.stage.zoomY);
+    
+    canvas.width = 480 * z;
+    canvas.height = 360 * z;
+    
+    context.scale(z, z);
+    
+    context.imageSmoothingEnabled = false;
+    context.msImageSmoothingEnabled = false;  
+    
     var value = 0;
     if (!this.target) return;
     switch (this.cmd) {
@@ -2667,6 +4131,15 @@ var P = (function() {
         break;
       case 'getVar:':
         value = this.target.vars[this.param];
+        if (this.mode === 3 && this.stage.mousePressed) {
+          var x = this.stage.mouseX + 240 - this.x - 5;
+          var y = 180 - this.stage.mouseY - this.y - 20;
+          if (x >= 0 && y >= 0 && x <= this.width - 5 - 5 && y <= 9) {
+            value = this.sliderMin + Math.max(0, Math.min(1, (x - 2.5) / (this.width - 5 - 5 - 5))) * (this.sliderMax - this.sliderMin);
+            value = this.isDiscrete ? Math.round(value) : Math.round(value * 100) / 100;
+            this.target.vars[this.param] = value;
+          }
+        }
         break;
       case 'heading':
         value = this.target.direction;
@@ -2690,7 +4163,7 @@ var P = (function() {
         value = this.timeAndDate(this.param);
         break;
       case 'timer':
-        value = Math.round((this.stage.rightNow() - this.stage.timerStart) / 100) / 10;
+        value = Math.round((this.stage.now() - this.stage.timerStart) / 100) / 10;
         break;
       case 'volume':
         value = this.target.volume * 100;
@@ -2705,18 +4178,12 @@ var P = (function() {
     if (typeof value === 'number' && (value < 0.001 || value > 0.001)) {
       value = Math.round(value * 1000) / 1000;
     }
-    this.readout.textContent = '' + value;
-    if (this.slider) {
-      this.buttonWrap.style.transform = 'translate('+((+value || 0) - this.sliderMin) / (this.sliderMax - this.sliderMin)*100+'%,0)';
-    }
-  };
+    value = '' + value;
 
-  Watcher.prototype.layout = function() {
-    if (this.el) {
-      this.el.style.display = this.visible ? 'block' : 'none';
-      return;
+    if (this.labelWidth == null) {
+      context.font = 'bold 11px sans-serif';
+      this.labelWidth = context.measureText(this.label).width;
     }
-    if (!this.visible) return;
 
     this.el = document.createElement('div');
     this.el.dataset.watcher = this.stage.allWatchers.indexOf(this);
