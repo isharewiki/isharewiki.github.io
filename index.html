@@ -50,9 +50,6 @@
 </div>
 
 <div class=area id=project-area>
-<section>
-	<img id=screenshot src="" width="20%">
-</section>
 <section class=package>
   <h1>店內享用</h1>
   <p>取得一個網頁，連結後可以自動執行該專案。</p>
@@ -211,7 +208,6 @@
     updateBugLink();
     updatePackageLink();
     updateEmbedCode();
-	changeImage();
   }
 
   function updateBugLink() {
@@ -293,9 +289,7 @@
   function view2onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId +"/#editor");}
   function view3onclick(){window.open("https://beta.scratch.mit.edu/#"+P.player.projectId);}
   function screenshotonclick(){window.open("https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png");}
-function changeImage(img) {
-    document.getElementById("screenshot").src = img.src.replace("", "https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png");
-}
+
 
 </script>
 <script>
