@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-tw">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title></title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="fork.css" type="text/css" />
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        iframe {
+            height: 100%;
+            width: 100%;
+            margin: 0px;
+            padding: 0px;
+            overflow: hidden;
+            border: 0;
+        }
+
+        .column {
+            float: left;
+            width: 50%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .row {
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            overflow: hidden;
+        }
+
+        .row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- HTML -->
+    <div class="row">
+        <div class="column" id="parent"><span id="prj_parent"></span><iframe class="code" id="frame_parent" frameborder="0" height="100%" width="100%"></iframe></div>
+        <div class="column" id="child"><span id="prj_child"></span><iframe class="code" id="frame_child" frameborder="0" height="100%" width="100%"></iframe></div>
+    </div>
+
+    <!-- JS -->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+
+    <!-- Inline JS -->
+    <script type="text/javascript">
+        jQuery.noConflict();
+        (function($) {
+            var tID = 0;
+            var signatures = {
+                'frame_parent': [],
+                'frame_child': []
+            };
+
+            tID = setInterval(function() {
+                var len = $('.finished').length;
+                // lyshie_20180919: both two frames finished loading
+                if (len > 1) {
+                    clearInterval(tID);
+
+                    // find common code blocks
+                    var common = $.grep(signatures['frame_parent'], function(element) {
+                        return $.inArray(element, signatures['frame_child']) !== -1;
+                    });
+
+                    console.log(common);
+                    $.each(common, function(k, v) {
+                        $('#frame_parent, #frame_child').contents().find('div#' + v).css('opacity', '0.5');
+                    });
+                }
+            }, 100);
+
+            $('#frame_parent, #frame_child').on('load', function() {
+                var myself = $(this);
+                var timerID = 0;
+
+                timerID = setInterval(function() {
+                    var len = $(myself).contents().find('.finished').length;
+                    if (len > 0) {
+                        clearInterval(timerID);
+                        // lyshie_20180919: after loading all code blocks, add a 'finished' element at the bottom of page to each frame
+                        $('body').append($('<span class="finished">'));
+                        //$(myself).contents().find('.signature').css('background-color', 'red');
+
+                        $.each($(myself).contents().find('div.cb'), function(k, v) {
+                            // either 'frame_parent' or 'frame_child'
+                            var id = $(myself).attr('id');
+                            // hash code
+                            var sig = $(v).attr('id');
+                            // push signatures into signatures['frame_parent'] or signatures['frame_child']
+                            signatures[id].push(sig);
+
+                            // lyshie_20180919: sync view 'div.cb'
+                            $(v).on('mouseover', function() {
+                                // scroll self frame (code block)
+                                $(myself).contents().scrollTop(
+                                    $(this).offset().top
+                                );
+
+                                // scroll another frame (code block)
+                                if (id == 'frame_parent') {
+                                    var target = $('#frame_child').contents().find('.cb[id={}]'.replace('{}', sig)).offset();
+                                    if (target) {
+                                        $('#frame_child').contents().scrollTop(target.top);
+                                    }
+                                } else { // 'frame_child'
+                                    var target = $('#frame_parent').contents().find('.cb[id={}]'.replace('{}', sig)).offset();
+                                    if (target) {
+                                        $('#frame_parent').contents().scrollTop(target.top);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }, 50);
+            });
+
+            function getURLParameter(url) {
+                if (url.length < 1) {
+                    console.log('empty url string');
+                    return null
+                }
+
+                var buf = decodeURIComponent(url.substring(1));
+                var tokens = buf.split('&');
+                var params = {};
+
+                tokens.forEach(function(token) {
+                    var tmp = token.split('=');
+                    params[tmp[0]] = tmp[1];
+                });
+
+                console.log(params);
+                return params;
+            }
+
+            $(function() {
+                // parameters
+                console.log(window.location.search);
+                params = getURLParameter(window.location.search);
+
+                if (params['project']) {
+                    console.log('yes');
+                    $.ajax({
+                        url: 'https://scratch.mit.edu/projects/{}/remixtree/bare/'.replace('{}', params['project']),
+                        type: 'GET',
+                        crossOrigin: true,
+                        dataType: "json",
+                        success: function(json) {
+                            var child = params['project'];
+                            var root = json[child]['parent_id'];
+
+                            if (root && (root != child)) {
+                                $('#frame_parent').attr('src', 'project.html?project={}'.replace('{}', root));
+                                $('#frame_child').attr('src', 'project.html?project={}'.replace('{}', child));
+
+                                $('#prj_parent').html($('<a>').attr('href', 'diff.html?project={}'.replace('{}', root)).text(root));
+                                $('#prj_child').html($('<a>').attr('href', 'diff.html?project={}'.replace('{}', child)).text(child));
+                            }
+                        },
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            alert(errorThrown);
+                        }
+                    });
+                } else {
+                    console.log('no');
+                }
+
+            });
+        })(jQuery);
+    </script>
+</body>
+
+</html>
