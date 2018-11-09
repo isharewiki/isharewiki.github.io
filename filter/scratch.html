@@ -186,12 +186,13 @@
             if (username) { // 指定使用者
                 update_scratch(username, 0, 40);
             } else {
-                // cl10450101 ~ 106150
+                // cl104001 ~ 106150
                 // {prefix} + {item_years} + {num}
                 // twchps50   1              01
                 $.each(years.split(/\s*,\s*/), function(key_class, item_years) {
                     for (var n = 1; n <= count; n++) {
-                        var num = (n < 10) ? '0' + n : n;
+						var num = (n < 100) ? '0' + n : n;
+                        var num = (n < 10) ? '00' + n : n;
                         update_scratch(prefix + item_years + num, 0, 40);
                     }
                 });
