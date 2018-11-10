@@ -121,7 +121,7 @@
                             var getsb2 = $('<a class="dropdown-item" target="_blank">');
                             $(getsb2).attr({
                                 "href": "http://getsb2.herokuapp.com/" + item.id
-                            }).text('下載');
+                            }).attr("download",item.title+".sb2").text('下載專案');
 
                             var sulfurous = $('<a class="dropdown-item" target="_blank">');
                             $(sulfurous).attr({
