@@ -33,7 +33,7 @@ http.createServer(function(req, res) {
     u.pathname === '/' || u.pathname === '/index.html' ? '/index.html' :
     u.pathname === '/crossdomain.xml' ? '/crossdomain.xml' :
     null;
-
+console.log(u.pathname);
   if (path != null) {
     fs.readFile(__dirname + path, function(err, data) {
       if (err || !data) {
