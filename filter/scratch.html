@@ -76,7 +76,13 @@
                             if (mod > current) {
                                 hot = true;
                             }
+							//縮圖下載
+							var thumbdownload = $('<a download>');
+							$(thumbdownload).attr({
+								"href":"https://cdn2.scratch.mit.edu/get_image/project/" + item.id + "_480x360.png",
+							});
 
+							
                             // 縮圖
                             var thumb = $('<img class="downloadable lazy align-self-center border border-primary">');
                             $(thumb).attr({
@@ -160,7 +166,7 @@
 
                             // 專案
                             var div = $('<div class="media col-sm-6 col-md-4">');
-                            $(div).append(thumb).append(
+                            $(div).append(thumbdownload).append(thumb).append(
                                 $('<div class="media-body">').append(title, user,
                                     views, loves, favorites,
                                     $('<p class="m-0 p-0">').append(
@@ -209,12 +215,7 @@
                 tinysort($('#scratch>div'), '.x-username', '.x-project');
                 // lazy load images
                 $('.lazy').Lazy();
-				$('img.downloadable').each(function(){
-					var $this = $(this);
-					$this.wrap('<a href="' + $('img.downloadable').attr('src') + '" download />')
-				});
             });
-
         });
     </script>
 </body>
