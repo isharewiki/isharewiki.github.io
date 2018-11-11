@@ -207,7 +207,7 @@
             $(document).ajaxStop(function() {
                 // 排序
                 tinysort($('#scratch>div'), '.x-username', '.x-project');
-				$('.downloadable').each(function(){
+				$('img.downloadable').each(function(){
 					var $this = $(this);
 					$this.wrap('<a href="' + $this.attr('src') + '" download />')
 				});
