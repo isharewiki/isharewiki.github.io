@@ -211,7 +211,7 @@
                 // lazy load images
                 $('.lazy').Lazy();
             });
-			$('.downloadable.lazy.align-self-center.border.border-primary').each(function(){
+			$('.downloadable').each(function(){
 				var $this = $(this);
 				$this.wrap('<a href="' + $this.attr('src') + '" download />')
 			});
