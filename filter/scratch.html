@@ -207,14 +207,15 @@
             $(document).ajaxStop(function() {
                 // 排序
                 tinysort($('#scratch>div'), '.x-username', '.x-project');
-
+				$('.downloadable').each(function(){
+					var $this = $(this);
+					$this.wrap('<a href="' + $this.attr('src') + '" download />')
+				});
                 // lazy load images
                 $('.lazy').Lazy();
+				
             });
-			$('.downloadable').each(function(){
-				var $this = $(this);
-				$this.wrap('<a href="' + $this.attr('src') + '" download />')
-			});
+
         });
     </script>
 </body>
