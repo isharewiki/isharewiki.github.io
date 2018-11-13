@@ -324,9 +324,7 @@ $(document).ready(function(){
 		"src": "https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png",
 		"width": "32px"
 	});
-	$("#screenshot").append(thumb);
-	$("#projectname").text(document.title);
-	
+	$("#screenshot").append(thumb);	
 });
 
 var maxWidth = 0;
@@ -358,6 +356,8 @@ function startDownload(projectId){
 		// FIX 2018-07-16
 		if (typeof data == "string") {
 			data = JSON.parse(data);
+			$("#projectname").text(data.title);
+
 		}
 		setProgress(10);
 		logMessage("已加載 JSON");
@@ -414,7 +414,7 @@ function downloadSound(){
 			var content = jszip.generate({type:"blob"});
 			logMessage("正在儲存...");
 			try {
-				saveAs(content, P.player.projectId +".sb2");
+				saveAs(content, data.title +".sb2");
 			} catch(e){
 				saveAs(content, "project.sb2");
 			}
