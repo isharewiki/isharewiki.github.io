@@ -34,7 +34,7 @@
   <span class=view2 onclick="view2onclick()" title="用 Scratch 2 編輯器打開"></span>
   <span class=view3 onclick="view3onclick()" title="用 Scratch 3 編輯器打開"></span>
   <span class=download id=go title="直接下載專案"></span>
-  <span class=screenshot onclick="screenshotonclick()" title="下載截圖"></span>
+  <span id=screenshot onclick="screenshotonclick()" title="下載截圖"></span>
 </div>
 <div class=player></div>
 <div class=internal-error>
@@ -317,6 +317,15 @@ $(document).ready(function(){
 		//$("#go, #project").attr("disabled","disabled");
 		startDownload(projectId);
 	});
+	var thumb = $('<img class="screenshot">');
+	$(thumb).attr({
+		"data-src": item.image,
+		"width": "32px",
+		"data-toggle": "tooltip",
+		"title": "下載截圖"
+	}).tooltip();
+	$(#screenshot).append(thumb);
+	
 });
 
 var maxWidth = 0;
