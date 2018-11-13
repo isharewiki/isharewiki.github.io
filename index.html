@@ -356,8 +356,6 @@ function startDownload(projectId){
 		// FIX 2018-07-16
 		if (typeof data == "string") {
 			data = JSON.parse(data);
-			$("#projectname").text(data.title);
-
 		}
 		setProgress(10);
 		logMessage("已加載 JSON");
@@ -425,9 +423,11 @@ function downloadSound(){
 			logMessage("正在建立壓縮檔...");
 			var content = jszip.generate({type:"blob"});
 			logMessage("正在儲存...");
-      saveAs(content, P.player.projectId +".sb2");
+      saveAs(content, data.title +".sb2");
 			logMessage("完成");
 			psuccess();
+			$("#projectname").text(data.title);
+
 		});
 	}
 }
