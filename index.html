@@ -9,6 +9,7 @@
 
 <div class=area id=title-area>
 <h1 class=title>ishare</h1>
+
 <p>將你的 Scratch 專案編譯成 JavaScript，還附懶人功能，下載、用 Scratch 3.0 開啟…一應俱全… <a class=dropdown>給我 ID，我給你全世界！<select id=examples>
   <option value>
   <option value=11397100>3D Remix by DadOfMrLog
@@ -24,6 +25,7 @@
 </div>
 
 <div class=area id=player-area>
+<h2 id=projectname></h2>
 <div class=controls>
   <span class=stop title="停止"></span>
   <span class=pause title="暫停"></span>
@@ -323,6 +325,7 @@ $(document).ready(function(){
 		"width": "32px"
 	});
 	$("#screenshot").append(thumb);
+	$("#projectname").text(document.title);
 	
 });
 
