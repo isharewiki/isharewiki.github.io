@@ -320,10 +320,8 @@ $(document).ready(function(){
 	var thumb = $('<img class="screenshot">');
 	$(thumb).attr({
 		"src": "https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png",
-		"width": "32px",
-		"data-toggle": "tooltip",
-		"title": "下載截圖"
-	}).tooltip();
+		"width": "32px"
+	});
 	$("#screenshot").append(thumb);
 	
 });
