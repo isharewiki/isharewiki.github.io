@@ -353,7 +353,7 @@ function startDownload(projectId){
 	setProgress(0);
 	jszip = new JSZip();
 	jszip.comment = "Created with MegaApuTurkUltra's Project Downloader";
-	$.get("https://cdn.projects.scratch.mit.edu/internalapi/project/"+"265427508"+"/get/", function(data){
+	$.get("https://cdn.projects.scratch.mit.edu/internalapi/project/"+projectId+"/get/", function(data){
 		// FIX 2018-07-16
 		if (typeof data == "string") {
 			data = JSON.parse(data);
@@ -368,7 +368,7 @@ function startDownload(projectId){
 			}
 		}
 		logMessage("找到 "+totalAssets+" 個資源");
-		jszip.file("project.json", JSON.stringify(project));
+		jszip.file("project.json", "");
 		downloadCostume();
 	}).fail(perror);
 }
