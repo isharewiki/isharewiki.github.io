@@ -368,7 +368,7 @@ function startDownload(projectId){
 			}
 		}
 		logMessage("找到 "+totalAssets+" 個資源");
-		jszip.file("project.json", "");
+		jszip.file("project.json", JSON.stringify(project));
 		downloadCostume();
 	}).fail(perror);
 }
@@ -413,9 +413,9 @@ function downloadSound(){
 			var content = jszip.generate({type:"blob"});
 			logMessage("正在儲存...");
 			try {
-				saveAs(content, P.player.projectId +".sb2");
+				saveAs(content, P.player.projectId +".zip");
 			} catch(e){
-				saveAs(content, "project.sb2");
+				saveAs(content, "project.zip");
 			}
 			logMessage("完成");
 			psuccess();
@@ -424,7 +424,7 @@ function downloadSound(){
 			logMessage("正在建立壓縮檔...");
 			var content = jszip.generate({type:"blob"});
 			logMessage("正在儲存...");
-			saveAs(content, P.player.projectId +".sb2");
+			saveAs(content, P.player.projectId +".zip");
 			logMessage("完成");
 			psuccess();
 		});
