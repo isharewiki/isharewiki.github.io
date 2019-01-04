@@ -7,124 +7,98 @@
     <title></title>
 
     <!-- CSS -->
-    <link rel="stylesheet" href="treant-js/Treant.css" type="text/css" />
-    <link rel="stylesheet" href="treant-js/vendor/perfect-scrollbar/perfect-scrollbar.css" type="text/css" />
     <link rel="stylesheet" href="fork.css" type="text/css" />
-    <style>
-    </style>
 </head>
 
 <body>
     <!-- HTML -->
-    <div id="tree-canvas"></div>
+    <div id="code"></div>
 
     <!-- JS -->
+    <script type="text/javascript" src="https://scratchblocks.github.io/js/scratchblocks-v3.1-min.js"></script>
+    <script type="text/javascript" src="https://scratchblocks.github.io/js/translations-all-v3.1-min.js" charset="utf8"></script>
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="treant-js/vendor/raphael.js"></script>
-    <script type="text/javascript" src="treant-js/Treant.js"></script>
-    <script type="text/javascript" src="treant-js/vendor/jquery.mousewheel.js"></script>
-    <script type="text/javascript" src="treant-js/vendor/perfect-scrollbar/perfect-scrollbar.js"></script>
+    <script type="text/javascript" src="JavaScript-MD5/js/md5.min.js"></script>
 
     <!-- Inline JS -->
     <script type="text/javascript">
         jQuery.noConflict();
         (function($) {
-
             function getURLParameter(url) {
                 if (url.length < 1) {
                     console.log('empty url string');
                     return null
                 }
-
                 var buf = decodeURIComponent(url.substring(1));
                 var tokens = buf.split('&');
                 var params = {};
-
                 tokens.forEach(function(token) {
                     var tmp = token.split('=');
                     params[tmp[0]] = tmp[1];
                 });
-
                 console.log(params);
                 return params;
             }
-
-            function dfs(sub, json, tree) {
-                console.log();
-                $.each(sub['children'], function(key, val) {
-                    console.log(key, val);
-                    var node = {
-                        text: {
-                            title: json[val]['title'],
-                            desc: json[val]['username'],
-                            contact: {
-                                val: val,
-                                href: 'diff.html?project={}'.replace('{}', val),
-                                target: '_blank'
-                            }
-                        },
-                        image: 'https://cdn2.scratch.mit.edu/get_image/project/{}_60x45.png?'.replace('{}', val),
-                        children: []
-                    };
-                    tree['children'].push(node);
-                    dfs(json[val], json, node);
-                });
+            function render_scripts(json) {
+                if ('scripts' in json) {
+                    var docs = scratchblocks.fromJSON(json, scratchblocks.allLanguages['en']);
+                    // sorted by script content
+                    $.each(docs.scripts.sort(function(x, y) {
+                        // heavy load
+                        var a = (new scratchblocks.Document([x])).stringify();
+                        var b = (new scratchblocks.Document([y])).stringify();
+                        if (a < b) {
+                            return -1
+                        } else if (a > b) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    }), function(key, val) {
+                        var doc = new scratchblocks.Document([val]);
+                        var text_code = doc.stringify();
+                        // 'objName' + [script content]
+                        var hash_code = md5(json['objName'] + text_code);
+                        var signature = $('<pre class="signature">').text(hash_code);
+                        var code = $('<pre class="cb">').text(text_code);
+                        doc.translate(scratchblocks.allLanguages['zh_TW']);
+                        doc.render(function(svg) {
+                            var cb = $('<div class="cb" id="{}">'.replace('{}', hash_code));
+                            $(cb).append($('<div>').html(json['objName']), svg, signature, code);
+                            $('#code').append(cb);
+                        });
+                    });
+                }
+                if ('children' in json) {
+                    // sorted by 'objName'
+                    $.each(json.children.sort(function(x, y) {
+                        if (x['objName'] < y['objName']) {
+                            return -1
+                        } else if (x['objName'] > y['objName']) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    }), function(k, v) {
+                        // recursive render
+                        render_scripts(v);
+                    });
+                }
             }
-
             $(function() {
                 // parameters
                 console.log(window.location.search);
                 params = getURLParameter(window.location.search);
-
                 if (params['project']) {
                     console.log('yes');
                     $.ajax({
-                        url: 'https://scratch.mit.edu/projects/{}/remixtree/bare/'.replace('{}', params['project']),
+                        url: 'https://cdn.projects.scratch.mit.edu/internalapi/project/{}/get/'.replace('{}', params['project']),
                         type: 'GET',
                         crossOrigin: true,
                         dataType: "json",
                         success: function(json) {
-                            console.log(json);
-                            var root = json['root_id'];
-                            var tree = {
-                                text: {
-                                    title: json[root]['title'],
-                                    desc: json[root]['username'],
-                                    contact: {
-                                        val: root,
-                                        href: 'https://scratch.mit.edu/projects/{}/'.replace('{}', root),
-                                        target: '_blank'
-                                    }
-                                },
-                                image: 'https://cdn2.scratch.mit.edu/get_image/project/{}_60x45.png?'.replace('{}', root),
-                                HTMLid: 'root',
-                                children: []
-                            };
-
-                            dfs(json[root], json, tree);
-
-                            // config
-                            var chart_config = {
-                                chart: {
-                                    container: '#tree-canvas',
-                                    levelSeparation: 25,
-                                    siblingSeparation: 5,
-                                    connectors: {
-                                        type: 'step'
-                                    },
-                                    node: {
-                                        HTMLclass: 'node'
-                                    },
-                                    rootOrientation: 'WEST'
-                                },
-                                nodeStructure: tree
-                            };
-
-                            // main
-                            var chart = new Treant(chart_config,
-                                function() {
-                                    $(document).scrollTop($("#root").offset().top);
-                                }, $);
+                            render_scripts(json);
+                            $('body').append($('<span class="finished">'));
                         },
                         error: function(jqXHR, textStatus, errorThrown) {
                             alert(errorThrown);
@@ -133,7 +107,6 @@
                 } else {
                     console.log('no');
                 }
-
             });
         })(jQuery);
     </script>
