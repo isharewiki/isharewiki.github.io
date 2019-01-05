@@ -1,0 +1,487 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1.0">
+<title>ishare</title>
+<link rel=stylesheet href=player.css>
+<link rel=stylesheet href=index.css>
+<link rel=icon href="favicon.ico">
+<lang=zh-Hant-TW>
+
+<div class=area id=title-area>
+<h1 class=title>ishare</h1>
+
+<p>將你的 Scratch 專案編譯成 JavaScript，還附懶人功能，下載、用 Scratch 3.0 開啟…一應俱全… <a class=dropdown>給我 ID，我給你全世界！<select id=examples>
+  <option value>
+  <option value=11397100>3D Remix by DadOfMrLog
+  <option value=15945630>O by DCPU-16
+  <option value=10128407>Paper Minecraft by griffpatch
+  <option value=16207935>Alone in the depths by sticku
+  <option value=16205373>3D Framework by DadOfMrLog
+  <option value=31903442>gb.sb2 [Dr. Mario] by DCPU-16
+  <option value=34791164>gb.sb2 [Mario Land 2] by DCPU-16
+  <option value=21554369>Epic Ninja by griffpatch
+  <option value=15832807>Pretty by blob8108
+</select></a>.</p>
+</div>
+
+<div class=area id=player-area>
+<h2 id=projectname></h2>
+<div class=controls>
+  <span class=stop title="停止"></span>
+  <span class=pause title="暫停"></span>
+  <span class=flag title="開始（按住 Shift 並點擊可啟用加速模式）"></span>
+  <div class=turbo>加速模式</div>
+  <span class=full-screen title="全屏顯示"></span>
+  <span class=view1 onclick="view1onclick()" title="觀看專案頁"></span>
+  <span class=view2 onclick="view2onclick()" title="用 Scratch 2 編輯器打開"></span>
+  <span class=view3 onclick="view3onclick()" title="用 Scratch 3 編輯器打開"></span>
+  <span class=download id=go title="下載材料包"></span>
+  <a id=screenshot onclick="screenshotonclick()" title="下載截圖"></a>
+</div>
+<div class=player></div>
+<div class=internal-error>
+  哎唷，發生內部錯誤，<a id=error-bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>點擊此處回報 bug</a>。
+</div>
+<pre><code id="log"></code></pre>
+</div>
+
+<div class=title>
+  <div class=progress-bar></div>
+  <input class=url id=project value=https://scratch.mit.edu/projects/>
+  <a target=_blank class=project-link title=" "></a>
+</div>
+
+<div class=area id=project-area>
+<section class=package>
+  <h1>店內享用</h1>
+  <p>取得一個網頁，連結後可以自動執行該專案。</p>
+  <p>
+    <a href=# target=_blank id=package-link>開啟網頁</a>
+    <input type=checkbox id=package-turbo>
+    <label for=package-turbo>加速模式</label>
+    <input type=checkbox id=package-full-screen checked>
+    <label for=package-full-screen>全屏顯示</label>
+  </p>
+</section>
+<section class=package>
+  <h1>打包帶走</h1>
+  <p>將帶有播放器的專案嵌入到你想要的網站裡頭。</p>
+  <p>
+    <input readonly id=embed-code>
+    <input type=checkbox id=embed-auto-start>
+    <label for=embed-auto-start >自動開始</label>
+    <input type=checkbox id=embed-light-content>
+    <label for=embed-light-content>明亮風格</label>
+    <input type=checkbox id=embed-hide-controls>
+    <label for=embed-hide-controls>隱藏操作面版</label>
+  </p>
+</section>
+<section>
+
+  <h1>有問題嗎？</h1>
+  <p>phosphorus 還在發展中，如果發現了什麼錯誤，請<a id=bug-link target=_blank href=https://github.com/nathan/phosphorus/issues/new>在這裡回報</a>。</p>
+</section>
+</div>
+<section>
+  <h1>誌謝</h1>
+  <p>phosphorus 是由 <a href=https://github.com/nathan>Nathan</a> 創建， 其 CPS 風格的編輯和整體設計靈感來自於 <a href=https://github.com/RHY3756547>Rhys</a>'s <a href=https://code.google.com/p/sb2-js/>sb2.js</a>。感謝 <a href=https://github.com/trumank>Truman</a> 和 <a href=https://github.com/tjvr>Tim</a> 幫忙除錯。這個程式用到了 <a href=https://stuk.github.io/jszip/>JSZip</a> 庫（創建者有 <a href=https://github.com/stuk>Stuart Knightley</a>、<a href=https://github.com/dduponchel>David Duponchel</a>、Franz Buchinger、<a href=https://github.com/aadsm>António Afonso</a>）來讀取 <code>.sb2</code> 檔案以及壓縮的專案。還用到了 <a href=https://code.google.com/p/canvg/>canvg</a> 庫（創建者為 <a href=https://code.google.com/u/gabelerner@gmail.com/>Gabe Lerner</a>）來渲染 SVGs 到 <code>&lt;canvas&gt;</code> 元素裡頭。
+  <h1>程式碼</h1>
+  <p>phosphorus 的源碼就在 <a href=https://github.com/nathan/phosphorus> GitHub</a>。</p>
+  <h1>我是誰</h1>
+  <p>不重要</p>
+</section>
+<script src=fonts.js></script>
+<script src=//cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.js></script>
+<script src=lib/rgbcolor.js></script>
+<script src=lib/StackBlur.js></script>
+<script src=lib/canvg.js></script>
+<script src=lib/shaders.js></script>
+<script src=lib/gl-matrix-min.js></script>
+<script src=phosphorus.js></script>
+<script src=player.js></script>
+<script src=lib/fonts.js></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2014-11-29/FileSaver.min.js"></script>
+<script src="https://cdn.rawgit.com/Stuk/jszip-utils/dfdd631c4249bc495d0c335727ee547702812aa5/dist/jszip-utils.min.js"></script>
+<script>
+
+(function() {
+  'use strict';
+
+  var prefix = 'https://scratch.mit.edu/projects/';
+
+  var initialId = location.hash.substr(1);
+  if (initialId === 'zip') initialId = '';
+
+  var titleArea = document.querySelector('#title-area');
+  var playerArea = document.querySelector('#player-area');
+  var projectArea = document.querySelector('#project-area');
+
+  playerArea.style.height = projectArea.style.height = 'auto';
+  var titleAreaHeight = titleArea.offsetHeight;
+  var playerAreaHeight = playerArea.offsetHeight;
+  var projectAreaHeight = projectArea.offsetHeight;
+  playerArea.style.height = projectArea.style.height = 0;
+
+  var examples = document.querySelector('#examples');
+  var urlInput = document.querySelector('.url');
+  urlInput.value = prefix + initialId;
+
+  var progressBar = document.querySelector('.progress-bar');
+  var player = document.querySelector('.player');
+  var projectLink = document.querySelector('.project-link');
+  var bugLink = document.querySelector('#bug-link');
+
+  var packageLink = document.querySelector('#package-link');
+  var packageTurbo = document.querySelector('#package-turbo');
+  var packageFullScreen = document.querySelector('#package-full-screen');
+
+  var embedCode = document.querySelector('#embed-code');
+  var embedAutoStart = document.querySelector('#embed-auto-start');
+  var embedLightContent = document.querySelector('#embed-light-content');
+  var embedHideControls = document.querySelector('#embed-hide-controls');
+
+  var timeout;
+  urlInput.addEventListener('input', function() {
+    var ss = urlInput.selectionStart;
+    var se = urlInput.selectionEnd;
+    var url = urlInput.value;
+    var id = url.match(/\d+/g) || [''];
+    while (id.length > 1 && id.indexOf(P.player.projectId) > -1) {
+      id.splice(id.indexOf(P.player.projectId), 1);
+    }
+    id = id[0];
+    urlInput.value = url = prefix + id;
+    urlInput.selectionStart = urlInput.selectionEnd = Math.max(prefix.length, ss);
+    clearTimeout(timeout);
+    if (P.player.projectId !== id) {
+      timeout = setTimeout(function() {
+        location.hash = '#' + id;
+      }, 300);
+    }
+  });
+  urlInput.addEventListener('focus', function() {
+    setTimeout(function() {
+      if (/\d/.test(urlInput.value)) {
+        urlInput.select();
+      }
+    });
+  });
+
+  examples.addEventListener('change', function() {
+    if (examples.value) {
+      location.hash = '#' + examples.value;
+      examples.selectedIndex = 0;
+    }
+  });
+
+  window.addEventListener('hashchange', function() {
+    var id = location.hash.substr(1);
+    if (id !== 'zip') {
+      if (+id !== +id) id = '';
+      urlInput.value = prefix + id;
+    }
+    load(id);
+  });
+
+  function show(id) {
+    titleArea.style.height = id ? 0 : titleAreaHeight + 'px';
+    playerArea.style.height = id ? playerAreaHeight + 'px' : 0
+    projectArea.style.height = id ? projectAreaHeight + 'px' : 0;
+    if (!id) urlInput.focus();
+  }
+
+  function load(id) {
+    if (id !== 'zip') {
+      show(id);
+    } else {
+      id = '';
+    }
+
+    document.title = 'ishare';
+    P.player.load(id, function(stage) {
+      stage.triggerGreenFlag();
+    }, function(title) {
+      document.title = title ? title : 'ishare';
+      updateBugLink();
+    });
+
+    projectLink.href = P.player.projectURL;
+    updateBugLink();
+    updatePackageLink();
+    updateEmbedCode();
+  }
+
+  function updateBugLink() {
+    bugLink.href = P.player.projectId ? 'https://github.com/nathan/phosphorus/issues/new?title=' + encodeURIComponent(P.player.projectTitle || P.player.projectURL) + '&body=' + encodeURIComponent('\n\n\n' + P.player.projectURL + '\nhttps://isharewiki.github.io/#' + P.player.projectId + '\n' + navigator.userAgent) : 'https://github.com/nathan/phosphorus/issues/new?body=' + encodeURIComponent('\n\n\n' + navigator.userAgent);
+	$("#projectname").text(document.title);
+  }
+
+  function updatePackageLink() {
+    packageLink.href = P.player.projectId ? '/app.html?id=' + P.player.projectId + '&turbo=' + packageTurbo.checked + '&full-screen=' + packageFullScreen.checked : 'about:blank';
+  }
+
+  packageTurbo.addEventListener('change', updatePackageLink);
+  packageFullScreen.addEventListener('change', updatePackageLink);
+
+  function updateEmbedCode(e) {
+    embedCode.value = P.player.projectId ? '<script src=https://' + location.host + '/embed.js?id=' + P.player.projectId + (embedHideControls.checked ? '&ui=false' : '&auto-start=' + embedAutoStart.checked + '&light-content=' + embedLightContent.checked) + '></' + 'script>' : '';
+    embedAutoStart.disabled =
+    embedLightContent.disabled = embedHideControls.checked;
+    if (embedHideControls.checked) embedAutoStart.checked = true;
+    if (e) embedCode.focus();
+  }
+
+  function selectEmbedCode() {
+    setTimeout(function() {
+      embedCode.select();
+    });
+  }
+
+  embedCode.addEventListener('focus', selectEmbedCode);
+  embedCode.addEventListener('click', selectEmbedCode);
+  embedHideControls.addEventListener('change', updateEmbedCode);
+  embedAutoStart.addEventListener('change', updateEmbedCode);
+  embedLightContent.addEventListener('change', updateEmbedCode);
+
+  load(initialId);
+
+  setTimeout(function() {
+    function setTransition(el) {
+      el.style.WebkitTransition =
+      el.style.MozTransition =
+      el.style.OTransition =
+      el.style.transition = 'height 0.2s';
+    }
+    setTransition(titleArea);
+    setTransition(playerArea);
+    setTransition(projectArea);
+  });
+
+  function cancel(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+  document.body.addEventListener('dragover', cancel);
+  document.body.addEventListener('dragenter', cancel);
+
+  document.body.addEventListener('drop', function(e) {
+    e.preventDefault();
+
+    var f = e.dataTransfer.files[0];
+
+    if (f) {
+      location.hash = '#zip';
+      show('zip');
+      var ext = f.name.split('.').pop();
+      if (ext === 'sb2' || ext === 'zip') {
+        var request = P.IO.loadSB2File(f);
+      } else if (ext === 'json') {
+        request = P.IO.loadJSONFile(f);
+      }
+      if (request) {
+        P.player.showProgress(request, function(stage) {
+          stage.triggerGreenFlag();
+        });
+      }
+    }
+  });
+
+}());
+  function view1onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId);}
+  function view2onclick(){window.open("https://scratch.mit.edu/projects/"+P.player.projectId +"/#editor");}
+  function view3onclick(){window.open("https://beta.scratch.mit.edu/#"+P.player.projectId);}
+  function screenshotonclick(){window.open("https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png");}
+
+
+</script>
+<script>
+$(document).ready(function(){
+	$("#project").bind("keydown keyup keypress", function(){
+		$(this).css("color", "#000");
+		var projectId = $("#project").val();
+		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
+		projectId = parseInt(projectId);
+		if(isNaN(projectId)){
+			$("#project").css("color", "red");
+		}
+	}).on("paste", function(){
+		$(this).val("");
+	});
+	$("#go").click(function(){
+		$("#progress").removeClass("error success");
+		var projectId = $("#project").val();
+		projectId = projectId.replace("://scratch.mit.edu/projects/", "").replace("https", "").replace("http", "");
+		projectId = parseInt(projectId);
+		if(isNaN(projectId)){
+			$("#project").css("color", "red");
+			return;
+		}
+		//$("#go, #project").attr("disabled","disabled");
+		startDownload(projectId);
+	});
+	var thumb = $('<img class="screenshot">');
+	$(thumb).attr({
+		"src": "https://cdn2.scratch.mit.edu/get_image/project/"+P.player.projectId + "_480x360.png",
+		"width": "32px"
+	});
+	$("#screenshot").append(thumb);	
+});
+
+var maxWidth = 0;
+var jszip = null;
+var project = null;
+var id = null;
+var soundId = 0;
+var costumeId = 0;
+var soundsToDownload = [];
+var costumesToDownload = [];
+var totalAssets = 0;
+var completeAssets = 0;
+
+function startDownload(projectId){
+	$("#log").text("");
+	$("#progress").text("");
+	logMessage("正在下載專案 "+projectId);
+	soundId = 0;
+	costumeId = 0;
+	totalAssets = 0;
+	completeAssets = 0;
+	soundsToDownload = [];
+  costumesToDownload = [];
+	id = projectId;
+	setProgress(0);
+	jszip = new JSZip();
+	jszip.comment = "這是 Scratch 編程專用材料包，裡面有這個專案所需的舞台背景、角色造型、以及用到的音效。";
+	$.get("https://cdn.projects.scratch.mit.edu/internalapi/project/"+projectId+"/get/", function(data){
+		// FIX 2018-07-16
+		if (typeof data == "string") {
+			data = JSON.parse(data);
+		}
+		setProgress(10);
+		logMessage("已加載 JSON");
+		project = data;
+		processSoundsAndCostumes(project);
+		if(project.hasOwnProperty("children")){
+			for(child in project.children){
+				processSoundsAndCostumes(project.children[child]);
+			}
+		}
+		logMessage("找到 "+totalAssets+" 個資源");
+		jszip.file("project.json", JSON.stringify(project));
+		downloadCostume();
+	}).fail(perror);
+}
+
+function downloadCostume(){
+	if(costumesToDownload.length > 0){
+		var current = costumesToDownload.pop();
+		logMessage("正在讀取資源 "+current.costumeName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.baseLayerMD5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.baseLayerMD5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.baseLayerID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadCostume();
+		});
+	} else {
+		downloadSound();
+	}
+}
+
+function downloadSound(){
+	if(soundsToDownload.length > 0){
+		var current = soundsToDownload.pop();
+		logMessage("正在讀取資源 "+current.soundName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.md5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.md5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.soundID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadSound();
+		});
+	} else {
+		logMessage("正在讀取專案標題...");
+		$.get("https://scratch.mit.edu/api/v1/project/"+id+"/?format=json", function(data){
+			logMessage("正在建立壓縮檔...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("正在儲存...");
+			try {
+				saveAs(content, P.player.projectId +".zip");
+			} catch(e){
+				saveAs(content, "project.zip");
+			}
+			logMessage("完成");
+			psuccess();
+		}).fail(function(){
+			logMessage("無法讀取專案標題...");
+			logMessage("正在建立壓縮檔...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("正在儲存...");
+			saveAs(content, P.player.projectId +".zip");
+			logMessage("完成");
+			psuccess();
+		});
+	}
+}
+
+function processSoundsAndCostumes(node){
+	if(node.hasOwnProperty("costumes")){
+		for(var i=0;i<node.costumes.length;i++){
+			var current = node.costumes[i];
+			current.baseLayerID = costumeId;
+			costumeId++;
+			totalAssets++;
+			costumesToDownload.push(current);
+		}
+	}
+	if(node.hasOwnProperty("sounds")){
+		for(var i=0;i<node.sounds.length;i++){
+			var current = node.sounds[i];
+			current.soundID = soundId;
+			soundId++;
+			totalAssets++;
+			soundsToDownload.push(current);
+		}
+	}
+}
+
+function perror(){
+	logMessage("下載失敗");
+	setProgress(100);
+	$("#progress").addClass("error");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function psuccess(){
+	setProgress(100);
+	$("#progress").addClass("success");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function setProgress(perc){
+	maxWidth = $("#project").width() + $("#go").width();
+	$("#progress").css("left", $("#project").position().left+"px");
+	$("#progress").width(perc * maxWidth * 1.055 / 100);
+}
+
+function reset(){
+	$("#go, #project").removeAttr("disabled");
+}
+
+function logMessage(msg){
+	$("#log").text(msg+"\n"+$("#log").text());
+}
+</script>
