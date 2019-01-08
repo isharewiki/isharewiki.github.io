@@ -24,6 +24,26 @@
 <script src=lib/canvg.js></script>
 
 <script>
-var projectId = 17088932;
+  var params = location.search.substr(1).split('&');
+  params.forEach(function(p) {
+    var parts = p.split('=');
+    if (parts.length > 1) {
+      switch (parts[0]) {
+        case 'id':
+          projectId = Number(parts[1]);
+          break;
+        case 'auto-start':
+          autoStart = parts[1] !== 'false';
+          break;
+        case 'light-content':
+          lightContent = parts[1] !== 'false';
+          break;
+        case 'ui':
+          hasUI = parts[1] !== 'false';
+          break;
+      }
+    }
+  });
+
 document.getElementById('player').innerHTML += '<iframe allowtransparency="true" width="500" height="410" src="https://scratch.mit.edu/projects/embed/'+projectId+'/" frameborder="0" allowfullscreen></iframe>';
 </script>
