@@ -4,18 +4,30 @@
 <title>ishare</title>
 <link rel=stylesheet href=player3.css>
 <link rel=stylesheet href=embeder.css>
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
 <div id=player class=player></div>
-<div class=controls>
-  <div class=progress-bar></div>
-  <span class=stop title="停止"></span>
-  <span class=pause title="暫停"></span>
-  <span class=flag title="開始（按住 Shift 並點擊可啟用加速模式）"></span>
-  <div class=turbo>加速模式</div>
-  <span class=full-screen title="全屏顯示"></span>
-  <span class=reference onclick="referenceclick()" title="連結到完整頁面" ></span>
+<div class="modal is-hide">
+  <iframe id="full_screen_player" width="80%" height="80%"  src="" frameborder="0" allowfullscreen></iframe>
+  <a class="modal-close js-modal-close">X</a>
 </div>
-<script src=player3.js></script>
+<div class=controls>
+	<button class="btn btn-1 btn-sep icon-info" onclick="popup()" id="js-startbtn">全屏顯示</button>
+	<button class="btn btn-2 btn-sep icon-cart" id="go">素材下載</button>
+	<button class="btn btn-3 btn-sep icon-heart" onclick="referenceclick()">專案連結</button>
+	<button class="btn btn-4 btn-sep icon-send" onclick="remixtree()">改編紀錄</button>
+</div>
+  <div class=progress-bar></div>
+  <input class=url id=project value=https://scratch.mit.edu/projects/>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2014-11-29/FileSaver.min.js"></script>
+<script src="https://cdn.rawgit.com/Stuk/jszip-utils/dfdd631c4249bc495d0c335727ee547702812aa5/dist/jszip-utils.min.js"></script>
 <script>
+
+
+
+  var projectId = 215047571;
   var params = location.search.substr(1).split('&');
   params.forEach(function(p) {
     var parts = p.split('=');
@@ -36,6 +48,187 @@
       }
     }
   });
-
+  var $modal = $('.modal');
+  var HIDE_CLASS = 'is-hide';
+  
+  $('#js-startbtn').on('click',function(){
+    $modal.removeClass(HIDE_CLASS);
+  });
+  
+  $('.js-modal-close').on('click',function(){
+    $modal.addClass(HIDE_CLASS);
+  });
 document.getElementById('player').innerHTML += '<iframe allowtransparency="true" width="540" height="405" src="https://scratch.mit.edu/projects/embed/'+projectId+'/" frameborder="0" allowfullscreen></iframe>';
+document.getElementById('full_screen_player').src = 'https://scratch.mit.edu/projects/embed/'+projectId;
+  function referenceclick(){window.open("https://scratch.mit.edu/projects/"+projectId);}
+  function remixtree(){window.open("https://scratch.mit.edu/projects/"+projectId+"/remixtree");}
+$(document).ready(function(){
+
+	$("#go").click(function(){
+		startDownload(projectId);
+	});
+	var thumb = $('<img class="screenshot">');
+	$(thumb).attr({
+		"src": "https://cdn2.scratch.mit.edu/get_image/project/"+projectId + "_480x360.png",
+		"width": "32px"
+	});
+	$("#screenshot").append(thumb);	
+});
+
+var maxWidth = 0;
+var jszip = null;
+var project = null;
+var id = null;
+var soundId = 0;
+var costumeId = 0;
+var soundsToDownload = [];
+var costumesToDownload = [];
+var totalAssets = 0;
+var completeAssets = 0;
+
+function startDownload(projectId){
+	$("#log").text("");
+	$("#progress").text("");
+	logMessage("正在下載專案 "+projectId);
+	soundId = 0;
+	costumeId = 0;
+	totalAssets = 0;
+	completeAssets = 0;
+	soundsToDownload = [];
+  costumesToDownload = [];
+	id = projectId;
+	setProgress(0);
+	jszip = new JSZip();
+	jszip.comment = "這是 Scratch 編程專用材料包，裡面有這個專案所需的舞台背景、角色造型、以及用到的音效。";
+	$.get("https://cdn.projects.scratch.mit.edu/internalapi/project/"+projectId+"/get/", function(data){
+		// FIX 2018-07-16
+		if (typeof data == "string") {
+			data = JSON.parse(data);
+		}
+		setProgress(10);
+		logMessage("已加載 JSON");
+		project = data;
+		processSoundsAndCostumes(project);
+		if(project.hasOwnProperty("children")){
+			for(child in project.children){
+				processSoundsAndCostumes(project.children[child]);
+			}
+		}
+		logMessage("找到 "+totalAssets+" 個資源");
+		jszip.file("project.json", JSON.stringify(project));
+		downloadCostume();
+	}).fail(perror);
+}
+
+function downloadCostume(){
+	if(costumesToDownload.length > 0){
+		var current = costumesToDownload.pop();
+		logMessage("正在讀取資源 "+current.costumeName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.baseLayerMD5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.baseLayerMD5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.baseLayerID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadCostume();
+		});
+	} else {
+		downloadSound();
+	}
+}
+
+function downloadSound(){
+	if(soundsToDownload.length > 0){
+		var current = soundsToDownload.pop();
+		logMessage("正在讀取資源 "+current.soundName+" ("+completeAssets+"/"+totalAssets+")");
+		JSZipUtils.getBinaryContent(
+			"https://cdn.assets.scratch.mit.edu/internalapi/asset/"+current.md5+"/get/", 
+			function(err, data){
+				if(err) {error();return;}
+				var ext = current.md5.match(/\.[a-zA-Z0-9]+/)[0];
+				jszip.file(current.soundID+ext, data, {binary: true});
+				completeAssets++;
+				setProgress(10+89*(completeAssets/totalAssets));
+				downloadSound();
+		});
+	} else {
+		logMessage("正在讀取專案標題...");
+		$.get("https://scratch.mit.edu/api/v1/project/"+id+"/?format=json", function(data){
+			logMessage("正在建立壓縮檔...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("正在儲存...");
+			try {
+				saveAs(content, "project.zip");
+			} catch(e){
+				saveAs(content, "project.zip");
+			}
+			logMessage("完成");
+			psuccess();
+		}).fail(function(){
+			logMessage("無法讀取專案標題...");
+			logMessage("正在建立壓縮檔...");
+			var content = jszip.generate({type:"blob"});
+			logMessage("正在儲存...");
+			saveAs(content, "project.zip");
+			logMessage("完成");
+			psuccess();
+		});
+	}
+}
+
+function processSoundsAndCostumes(node){
+	if(node.hasOwnProperty("costumes")){
+		for(var i=0;i<node.costumes.length;i++){
+			var current = node.costumes[i];
+			current.baseLayerID = costumeId;
+			costumeId++;
+			totalAssets++;
+			costumesToDownload.push(current);
+		}
+	}
+	if(node.hasOwnProperty("sounds")){
+		for(var i=0;i<node.sounds.length;i++){
+			var current = node.sounds[i];
+			current.soundID = soundId;
+			soundId++;
+			totalAssets++;
+			soundsToDownload.push(current);
+		}
+	}
+}
+
+function perror(){
+	logMessage("下載失敗");
+	setProgress(100);
+	$("#progress").addClass("error");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function psuccess(){
+	setProgress(100);
+	$("#progress").addClass("success");
+	$("#progress").animate({opacity:0}, 1000, function(){
+		$(this).css({"opacity":1, width:0});
+		reset();
+	});
+}
+
+function setProgress(perc){
+	maxWidth = $("#project").width() + $("#go").width();
+	$("#progress").css("left", $("#project").position().left+"px");
+	$("#progress").width(perc * maxWidth * 1.055 / 100);
+}
+
+function reset(){
+	$("#go, #project").removeAttr("disabled");
+}
+
+function logMessage(msg){
+	$("#log").text(msg+"\n"+$("#log").text());
+}
 </script>
