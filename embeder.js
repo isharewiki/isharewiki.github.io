@@ -19,7 +19,7 @@
   iframe.setAttribute('allowtransparency', true);
   iframe.src = script.src.replace(/^http:/, 'https:').replace(/embeder\.js/, 'embeder.html');
   iframe.width = hasUI ? 640 : 480;
-  iframe.height = hasUI ? 480 : 360;
+  iframe.height = hasUI ? 500 : 360;
   iframe.style.border = '0';
   iframe.className = 'ishare';
 
