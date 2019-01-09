@@ -6,12 +6,12 @@
 <link rel=stylesheet href=embeder.css>
 <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
 <div id=player class=player></div>
-<div class="modal is-hide">
+<!-- <div class="modal is-hide">
   <iframe id="full_screen_player" width="80%" height="80%"  src="" frameborder="0" allowfullscreen></iframe>
   <a class="modal-close js-modal-close">X</a>
-</div>
+</div> -->
 <div class=controls>
-	<button class="btn btn-1 btn-sep icon-info" onclick="popup()" id="js-startbtn">全屏顯示</button>
+	<!-- <button class="btn btn-1 btn-sep icon-info" onclick="popup()" id="js-startbtn">全屏顯示</button> -->
 	<button class="btn btn-2 btn-sep icon-cart" id="go">素材下載</button>
 	<button class="btn btn-3 btn-sep icon-heart" onclick="referenceclick()">專案連結</button>
 	<button class="btn btn-4 btn-sep icon-send" onclick="remixtree()">改編紀錄</button>
@@ -59,7 +59,7 @@
     $modal.addClass(HIDE_CLASS);
   });
 document.getElementById('player').innerHTML += '<iframe allowtransparency="true" width="540" height="405" src="https://scratch.mit.edu/projects/embed/'+projectId+'/" frameborder="0" allowfullscreen></iframe>';
-document.getElementById('full_screen_player').src = 'https://scratch.mit.edu/projects/embed/'+projectId;
+//document.getElementById('full_screen_player').src = 'https://scratch.mit.edu/projects/embed/'+projectId;
   function referenceclick(){window.open("https://scratch.mit.edu/projects/"+projectId);}
   function remixtree(){window.open("https://scratch.mit.edu/projects/"+projectId+"/remixtree");}
 $(document).ready(function(){
