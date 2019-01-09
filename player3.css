@@ -312,3 +312,7 @@
 .fs .player {
   box-shadow: none;
 }
+input {
+	    display: none;
+
+}
