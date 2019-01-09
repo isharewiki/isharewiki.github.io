@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<meta charset="utf8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>scratchblocks homepage</title>
+
+<meta name=description content="Use scratchblocks to write pictures of Scratch scripts in forum posts.">
+
+<link rel=stylesheet href="https://isharewiki.github.io/lib/codemirror-custom.css">
+<link rel=stylesheet href="https://isharewiki.github.io/style.css">
+
+<!---------------------------------------------------------------------------->
+
+<h1>
+  <a href="/" class=link id=home-link>scratchblocks</a> translator
+  <span>
+    <a id="swap-btn">swap ↔</a>
+    <a id="home-link-2">done ↑</a>
+  </span>
+</h1>
+
+<div id=left>
+  <div id="in-editor"></div>
+  <div id="in-preview"></div>
+</div>
+
+<div id="side" class=right>
+<div>
+  <select id="choose-lang">
+    <option value="">Select language…
+    <option value="zh_TW"> 正體中文 (Traditional Chinese)
+  </select>
+
+  <small id=lang-status></small>
+
+</div>
+
+<textarea id="out-editor" placeholder="Select a language" readonly></textarea>
+<pre id="out-preview"></pre>
+</div>
+
+<!---------------------------------------------------------------------------->
+
+<script src="https://isharewiki.github.io/lib/scratchblocks-v3.2-min.js"></script>
+<script src="https://isharewiki.github.io/lib/translations-all-v3.2-min.js" charset="utf8"></script>
+<script src=https://isharewiki.github.io/lib/codemirror-compressed.js></script>
+
+<script>
+var inPreview = document.getElementById('in-preview');
+var outPreview = document.getElementById('out-preview');
+var outEditor = document.getElementById('out-editor');
+
+var editor = document.getElementById('in-editor');
+var swapBtn = document.getElementById('swap-btn');
+
+var obj = {};
+extractHash();
+
+var codeMirror = CodeMirror(editor, {
+  value: obj.script || "",
+  //mode: "scratch",
+
+  indentUnit: 4,
+  tabSize: 4,
+  indentWithTabs: true,
+
+  lineNumbers: false,
+
+  autofocus: true,
+
+  cursorHeight: 1,
+
+  placeholder: '. . .',
+
+  // viewportMargin: 'Infinity',
+});
+codeMirror.setCursor(codeMirror.getValue().length);
+
+// Debounces a function, pulled out of Underscore.js
+function debounce(func, wait, immediate) {
+  var timeout, result;
+  return function() {
+    var context = this, args = arguments;
+    var later = function() {
+      timeout = null;
+      if (!immediate) result = func.apply(context, args);
+    };
+    var callNow = immediate && !timeout;
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+    if (callNow) result = func.apply(context, args);
+    return result;
+  };
+};
+codeMirror.on("change", debounce(function() {
+  obj.script = codeMirror.getValue();
+  objUpdated();
+}, 250, false));
+
+var onResize = function() {
+  codeMirror.setSize(editor.clientWidth, editor.clientHeight)
+};
+window.addEventListener('resize', onResize);
+onResize();
+
+
+var chooseLang = document.getElementById('choose-lang');
+
+var incompleteLangs = [];
+var newOnlyLangs = [];
+[].slice.apply(chooseLang.options).forEach(function(el) {
+  var text = el.textContent;
+  if (/\*/.test(text)) incompleteLangs.push(el.value);
+  if (/\†/.test(text)) newOnlyLangs.push(el.value);
+});
+
+var langStatus = document.createTextNode("");
+document.getElementById('lang-status').appendChild(langStatus);
+
+chooseLang.addEventListener('change', function(e) {
+  obj.lang = chooseLang.value;
+  console.log(obj);
+  objUpdated();
+});
+
+
+/* Extract hash from location. Returns true if changed */
+function extractHash() {
+  var newObj = decodeHash();
+  if (!newObj || !newObj.script) {
+    newObj = {
+      script: "",
+      lang: obj.lang,
+    };
+  }
+
+  if (newObj.lang !== obj.lang || newObj.script !== obj.script) {
+    obj = newObj;
+    return true;
+  }
+  return false;
+}
+
+function decodeHash() {
+  var hash = location.href.split('#')[1];
+  if (!hash) return;
+
+  if (!/^\?/.test(hash)) {
+    return {
+      script: decodeURIComponent(hash),
+    };
+  } else {
+    var newObj = {};
+    parts = hash.slice(1).split('&');
+    parts.forEach(function(part) {
+      var match = /^(.*)=(.*)$/.exec(part);
+      if (!match) return;
+      var key = decodeURIComponent(match[1]);
+      var value = decodeURIComponent(match[2]);
+      if (key === "lang" || key === "script") {
+        newObj[key] = value;
+      }
+    });
+    return newObj;
+  }
+}
+
+function setHash(hash) {
+  if (history && history.replaceState) {
+    history.replaceState({}, "", hash);
+  } else {
+    location.hash = hash;
+  }
+}
+
+function setHomeLink(lang, script) {
+  var hash = lang ? '#?lang=' + encodeURIComponent(lang) + '&script='+encodeURIComponent(script)
+                  : '#'+encodeURIComponent(script);
+  document.getElementById('home-link').href = "/" + hash;
+  document.getElementById('home-link-2').href = "/" + hash;
+}
+
+function objUpdated() {
+  // set hash
+  if (obj.lang) {
+    setHash('#?lang=' + encodeURIComponent(obj.lang) + '&script='+encodeURIComponent(obj.script));
+  } else if (obj.script) {
+    setHash('#'+encodeURIComponent(obj.script));
+  } else {
+    if (!(location.hash == '' || location.hash == '#')) {
+      setHash('#');
+    }
+  }
+
+  // render code
+  var doc = window.doc = scratchblocks.parse(obj.script, {
+    languages: Object.keys(scratchblocks.allLanguages),
+  });
+  var fromLang = mainLanguage(doc);
+  doc.render(function(svg) {
+    inPreview.innerHTML = "";
+    inPreview.appendChild(svg);
+
+    if (scratchblocks.allLanguages.hasOwnProperty(obj.lang)) {
+      doc.translate(scratchblocks.allLanguages[obj.lang]);
+      doc.render(function(svg) {
+        outPreview.innerHTML = "";
+        outPreview.appendChild(svg);
+
+        var translated = doc.stringify();
+        outEditor.value = translated;
+
+        // fix links
+        swapBtn.href = '#?lang=' + encodeURIComponent(fromLang) + '&script='+encodeURIComponent(translated);
+        setHomeLink(obj.lang, translated);
+      });
+    } else {
+      outPreview.innerHTML = "";
+      outEditor.value = "";
+
+      // fix links
+      swapBtn.href = location.hash;
+      setHomeLink(fromLang, location.hash);
+    }
+  });
+
+  // update language dropdown
+  var isIncomplete = incompleteLangs.indexOf(obj.lang) > -1;
+  var isNewOnly = newOnlyLangs.indexOf(obj.lang) > -1;
+  var displayText = (
+      (isIncomplete && isNewOnly)
+              ? "has Scratch 2.0 blocks only, and is missing some blocks" :
+      isNewOnly ? "has Scratch 2.0 blocks only" :
+      isIncomplete ? "is missing some blocks" :
+      ""
+  );
+  langStatus.textContent = displayText;
+}
+
+function mainLanguage(doc) {
+  var counts = {};
+
+  doc.scripts.forEach(function(script) {
+    script.blocks.forEach(recurse);
+  });
+
+  function recurse(block) {
+    if (block.info.language) {
+      var code = block.info.language.code;
+      if (!counts.hasOwnProperty(code)) counts[code] = 0;
+      counts[code]++;
+    }
+    block.children.forEach(function(child) {
+      if (child.isBlock) recurse(child);
+    });
+  }
+
+  var max = 0;
+  var maxCode;
+  Object.keys(counts).forEach(function(code) {
+    var score = counts[code];
+    if (score > max || (score === max && maxCode === 'en')) {
+      maxCode = code;
+      max = score;
+    }
+  });
+  return maxCode;
+}
+
+setInterval(function() {
+  if (extractHash()) {
+    updatedFromHash();
+  }
+}, 200);
+
+function updatedFromHash() {
+  objUpdated();
+  codeMirror.setValue(obj.script);
+  chooseLang.value = obj.lang || "";
+}
+
+updatedFromHash();
+
+</script>
